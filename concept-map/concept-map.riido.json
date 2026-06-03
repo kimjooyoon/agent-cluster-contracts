@@ -1,5 +1,5 @@
 {
-  "version": "0.11.0",
+  "version": "0.12.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -199,7 +199,7 @@
         "An IR file missing the `source` block.",
         "IR sha256 not matching the current DSL file."
       ],
-      "guard_candidate": { "tool": "ssotdeps verify (IR-source pin check)", "status": "pending" },
+      "guard_candidate": { "tool": "irdrift (D003) re-emits IR from DSL via SBCL and diffs against committed ir/domain/*.ir.json — catches missing source field, wrong dsl_file path, or stale sha256. ir/schema/ir.schema.json (D007) requires the source object structurally. Both run in contracts.yml.", "status": "implemented" },
       "decision": "001-initial-agreement"
     },
     {

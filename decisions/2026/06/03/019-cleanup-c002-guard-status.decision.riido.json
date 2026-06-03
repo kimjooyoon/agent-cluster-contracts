@@ -1,0 +1,50 @@
+{
+  "id": "019-cleanup-c002-guard-status",
+  "title": "C-002 guard_candidate accurately reflects existing enforcement (irdrift + ir.schema.json)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "003-first-vertical-slice"
+    },
+    {
+      "kind": "decision",
+      "ref": "007-agent-roles-glob-fix-and-ir-schema-and-ir-fixture-types"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/irdrift/irdrift.go"
+    },
+    {
+      "kind": "file",
+      "ref": "ir/schema/ir.schema.json"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 post-D018 audit of pending guards"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "No new code or workflow. Pure SSOT cleanup. The audit that uncovered this came from inspecting outstanding pending guards; the others (C-004 devpattern",
+    "C-005 baseline-write-prevention) remain genuinely pending and are documented as such."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

@@ -1,0 +1,42 @@
+{
+  "id": "020-extend-purpose-banlist-cycle-39",
+  "title": "Add cycle-39 wording variant to purpose banlist (continuing the adversarial loop)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "018-fixture-purpose-banlist"
+    },
+    {
+      "kind": "log",
+      "ref": "cycle-39 fixture decision-positive-cycle-1780487001 with purpose 'Validate a unique accepted decision record in platform governance scope'"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 post-D019 audit observed new adaptation"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Long-term move (NOT in D020 scope): content-level dedup — canonicalize fixture content (strip id/title/self-ref/timestamps) and hash. Two fixtures with the same canonical hash are duplicates regardless of purpose wording. Would catch all wording-variation attacks at once. Open as future decision when this loop's cost exceeds the engineering cost of canonical hashing."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
