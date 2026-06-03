@@ -1,0 +1,10 @@
+{
+  "kind": "aggregate",
+  "name": "work-item",
+  "slots": null,
+  "source": {
+    "dsl_file": "dsl/domain/work-item.lisp",
+    "sha256": "85dcf3f8f3be4f8b2a4f8f5f7f8f2f3a4d5e6c7b8a9f0"
+  },
+  "fuzzer_note": "negative-shape expected"
+}
