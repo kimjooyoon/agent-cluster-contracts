@@ -81,6 +81,13 @@ var (
 		"tooling": true, "ci": true, "security": true, "backend": true,
 		"frontend": true, "deployment": true, "governance": true,
 	}
+	// D036: bounded_contexts enum, mirroring decisions/schema.riido.json.
+	// Until D036 BCs were unbounded — typos and ad-hoc names went undetected
+	// because the schema lacked an enum constraint and decision.go didn't
+	// validate them either. Initial set is what's been in use across D001..D035.
+	validBoundedContexts = map[string]bool{
+		"platform": true, "work-item": true,
+	}
 	validEvKind = map[string]bool{
 		"file": true, "url": true, "pr": true, "issue": true, "ci-run": true,
 		"log": true, "incident": true, "conversation": true, "decision": true,
@@ -170,6 +177,11 @@ func Validate(r *Record) []error {
 	}
 	if !validRep[r.SsotOwner] {
 		errs = append(errs, fmt.Errorf("ssot_owner %q: must be one of the three known repos", r.SsotOwner))
+	}
+	for _, bc := range r.Scope.BoundedContexts {
+		if !validBoundedContexts[bc] {
+			errs = append(errs, fmt.Errorf("scope.bounded_contexts: unknown bounded context %q (must be one of: platform, work-item — extending the enum requires a decision that updates both decisions/schema.riido.json and internal/decision/decision.go)", bc))
+		}
 	}
 	for _, a := range r.Scope.Areas {
 		if !validAreas[a] {

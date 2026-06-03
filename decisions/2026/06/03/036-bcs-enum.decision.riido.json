@@ -1,0 +1,57 @@
+{
+  "id": "036-bcs-enum",
+  "title": "Close scope.bounded_contexts enum gap - schema + Validate both enforce closed set",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit found scope.bounded_contexts had no enum constraint in decisions/schema.riido.json and decision.Validate did not check the values either. scope.areas was already enumerated/enforced (11 values) — bounded_contexts was the asymmetric gap. Typos like platfrm/Platform/work_item would have silently entered the SSOT"
+    },
+    {
+      "kind": "decision",
+      "ref": "031-forbid-ssot-schemas - same asymmetry-detection class: explicit invariants enforced symmetrically across SSOT halves"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "schema",
+      "ref": "decisions/schema.riido.json - scope.bounded_contexts.items.enum set to [platform, work-item]; rejects unknown BCs at parse time",
+      "status": "implemented"
+    },
+    {
+      "kind": "go-tool",
+      "ref": "internal/decision.Validate (validBoundedContexts map mirrors the schema enum) - rejects unknown BCs at load time before any cross-check runs. ValidateMap-style symmetry with validAreas already in place",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/decision/decision_test.go TestValidateAcceptsKnownBoundedContexts + TestValidateRejectsUnknownBoundedContexts (5 typo variants: NotARealBC, platfrm, empty string, Platform/Capitalized, work_item) + TestValidateRejectsMixedKnownAndUnknownBoundedContexts",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-020 - codifies the enum convention; concept-map bumped v0.23.0 to v0.24.0",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Existing decision with bounded_contexts: [platform] still validates - all 35 records on main use only platform or work-item.",
+    "New decision with bounded_contexts: [platfrm] (typo) is rejected by both layers: JSON Schema reports enum violation; decision.Validate reports 'scope.bounded_contexts: unknown bounded context \"platfrm\"'.",
+    "Adding a third BC requires a successor decision that updates BOTH the JSON Schema enum AND the validBoundedContexts map - same convention as ValidateMap and validAreas."
+  ],
+  "counterexamples": [
+    "scope.areas remains untouched - it already had the enum+enforcement before D036.",
+    "The first test file in internal/decision/ — backlog audit also noted 7 untested internal/ packages; D036 establishes the test-file convention for decision/. Other packages remain TODO (separate decisions when warranted).",
+    "Case-sensitivity is enforced: 'Platform' is rejected, only 'platform' is accepted. No fuzzy-matching - keeps the enum small and deliberate."
+  ],
+  "created_at": "2026-06-03"
+}

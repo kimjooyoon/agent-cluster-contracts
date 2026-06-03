@@ -43,7 +43,13 @@
       "required": ["bounded_contexts", "areas"],
       "additionalProperties": false,
       "properties": {
-        "bounded_contexts": { "type": "array", "items": { "type": "string" } },
+        "bounded_contexts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["platform", "work-item"]
+          }
+        },
         "areas": {
           "type": "array",
           "items": {
