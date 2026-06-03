@@ -1,4 +1,5 @@
 {
+  "fixture_type": "decision",
   "kind": "aggregate",
   "name": 123,
   "slots": [
