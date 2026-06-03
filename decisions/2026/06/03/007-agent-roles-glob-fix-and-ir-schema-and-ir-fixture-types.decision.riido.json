@@ -1,0 +1,54 @@
+{
+  "id": "007-agent-roles-glob-fix-and-ir-schema-and-ir-fixture-types",
+  "title": "Agent-roles glob fix + IR schema + probe fixtures support ir-aggregate/ir-event/query (bottom-up from SSOT backlog)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance",
+      "tooling",
+      "dsl",
+      "ir"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "004-agentguard-diagnostics-and-role-realignment"
+    },
+    {
+      "kind": "decision",
+      "ref": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "kind": "decision",
+      "ref": "006-ssot-extension-graphql-via-dsl"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/probe/probe.go"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal 'ssot 개선점이 존재하면 개선 및 개발'"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Already-merged WorkItem fixtures (PRs #6-#15) currently declare fixture_type=decision and pass for the wrong reason. After decision 007",
+    "a follow-up dumb-agent or guard-author PR may re-meta them to fixture_type=ir-aggregate; that re-meta is NOT done in this decision (separate",
+    "smaller change)."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

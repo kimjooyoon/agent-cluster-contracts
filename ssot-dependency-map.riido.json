@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -57,7 +57,7 @@
       "id": "ir-work-item",
       "kind": "ir",
       "path": "ir/domain/work-item.ir.json",
-      "schema": null,
+      "schema": "ir/schema/ir.schema.json",
       "owned_by": "agent-cluster-contracts"
     },
     {
@@ -71,7 +71,7 @@
       "id": "ir-work-item-created",
       "kind": "ir",
       "path": "ir/domain/work-item-created.ir.json",
-      "schema": null,
+      "schema": "ir/schema/ir.schema.json",
       "owned_by": "agent-cluster-contracts"
     },
     {
@@ -128,6 +128,13 @@
       "id": "ir-list-work-items",
       "kind": "ir",
       "path": "ir/domain/list-work-items.ir.json",
+      "schema": "ir/schema/ir.schema.json",
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "ir-schema",
+      "kind": "schema",
+      "path": "ir/schema/ir.schema.json",
       "schema": null,
       "owned_by": "agent-cluster-contracts"
     }
@@ -274,6 +281,13 @@
       "consumer_path": "lib/contracts_client/list_work_items.dart",
       "via": "gen-dart-client emits listWorkItemsQueryName Dart const; frontend code references this constant",
       "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
+    },
+    {
+      "ssot": "ir-schema",
+      "consumer_repo": "agent-cluster-contracts",
+      "consumer_path": "internal/probe/probe.go",
+      "via": "internal/probe.validateIRDoc mirrors the structural rules of ir/schema/ir.schema.json in Go (no third-party JSON Schema validator). Used by probe fixtures for fixture_type ir-aggregate / ir-event / query.",
+      "guard": "contracts.yml runs probe fixtures; any IR fixture that violates the schema fails"
     }
   ],
   "ci_gates": [
@@ -294,7 +308,8 @@
         "probe-tool",
         "environment-blockers-dir",
         "dsl-list-work-items",
-        "ir-list-work-items"
+        "ir-list-work-items",
+        "ir-schema"
       ]
     },
     {

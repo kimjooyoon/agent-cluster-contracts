@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -89,6 +89,14 @@
       "description": "Read-only GraphQL field defined by defquery in DSL. Its wire-name and returns-shape are SSOT; backend resolvers and frontend clients reference them via generated constants (Go: <Name>QueryName + <Name>Result; Dart: <camelName>QueryName). The hand-written GraphQL parser+executor remains hand-written until a separate library decision.",
       "examples": ["defquery list-work-items :wire-name \"workItems\" :returns-list work-item"],
       "decision": "006-ssot-extension-graphql-via-dsl"
+    },
+    {
+      "name": "IRSchema",
+      "kind": "artifact",
+      "owner": "agent-cluster-contracts",
+      "description": "JSON Schema (ir/schema/ir.schema.json) describing the structural shape of every ir/domain/<name>.ir.json document. Decision 007 added this; before then, C-002 referenced a schema that didn't exist. probe fixtures mirrors these rules in Go (no third-party validator dep) so fixture_type=ir-aggregate / ir-event / query can be checked.",
+      "examples": ["ir/schema/ir.schema.json", "fixtures/positive/work-item/min.json with fixture_type ir-aggregate"],
+      "decision": "007-agent-roles-glob-fix-and-ir-schema-and-ir-fixture-types"
     }
   ],
   "relationships": [
@@ -174,10 +182,10 @@
     },
     {
       "id": "C-002",
-      "rule": "Every JSON IR file must declare its DSL source file path and a sha256 of that source. Mismatch fails CI.",
-      "rationale": "IR is generated. Without a source pin, hand-edits are undetectable and downstream consumers lock in drift.",
+      "rule": "Every JSON IR file must declare its DSL source file path and a sha256 of that source. Mismatch fails CI. The structural shape of every IR file is defined by ir/schema/ir.schema.json (mirrored in code by internal/probe.validateIRDoc).",
+      "rationale": "IR is generated. Without a source pin, hand-edits are undetectable and downstream consumers lock in drift. Without a structural schema, codegen and consumers cannot rely on shape invariants.",
       "examples": [
-        "ir/domain/work-item.ir.json contains {\"source\":{\"dsl_file\":\"dsl/domain/work-item.lisp\",\"sha256\":\"...\"}}."
+        "ir/domain/work-item.ir.json contains {\"source\":{\"dsl_file\":\"dsl/domain/work-item.lisp\",\"sha256\":\"...\"}} and conforms to ir/schema/ir.schema.json (kind=aggregate branch)."
       ],
       "counterexamples": [
         "An IR file missing the `source` block.",
