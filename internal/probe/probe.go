@@ -17,6 +17,9 @@
 package probe
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -429,6 +432,34 @@ func isDecisionFixturePath(p string) bool {
 	return strings.Contains(s, "/fixtures/positive/decision/") || strings.Contains(s, "/fixtures/negative/decision/")
 }
 
+// canonicalDecisionContentHash loads a decision-fixture data file,
+// strips identity-only fields (id, title, examples, counterexamples,
+// evidence, created_at, notes), and returns the SHA-256 of the
+// canonical JSON form (json.Marshal sorts map keys deterministically).
+//
+// Two fixtures sharing the same hash exercise the same validator
+// paths — only the schema-relevant content drives decision.Validate's
+// pass/fail outcome. D030 uses this for dedup on first occurrence.
+func canonicalDecisionContentHash(dataPath string) (string, error) {
+	raw, err := os.ReadFile(dataPath)
+	if err != nil {
+		return "", err
+	}
+	var data map[string]any
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return "", err
+	}
+	for _, field := range []string{"id", "title", "examples", "counterexamples", "evidence", "created_at", "notes"} {
+		delete(data, field)
+	}
+	canonical, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.Sum256(canonical)
+	return hex.EncodeToString(h[:]), nil
+}
+
 var (
 	cycleMarkerRe       = regexp.MustCompile(`(?i)\bcycle[\s\-]\d+\b`)
 	decisionFixtureIDRe = regexp.MustCompile(`^000-fixture-`)
@@ -504,6 +535,22 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 	}
 	seenPurposes := map[purposeKey]string{}
 
+	// D030: content-hash dedup for decision fixtures. Tracks
+	// (category, fixture_type, canonical-content-sha256) → first path.
+	// After all 6 noise-marker layers (D023+D026+D028), the dumb-agent
+	// can still file a fixture that's structurally identical to the
+	// canonical positive-minimal modulo (id, title, examples,
+	// counterexamples, evidence, created_at) just by varying those
+	// identity-only fields. Canonical-content hashing catches this: if
+	// the stripped-and-sorted JSON has the same SHA-256 as a fixture
+	// already in the bucket, the new one adds no validator coverage.
+	type contentKey struct {
+		category    string
+		fixtureType string
+		hash        string
+	}
+	seenContentHashes := map[contentKey]string{}
+
 	// Decision 018: persistent banlist of known noise templates.
 	banlist := loadPurposeBanlist(root)
 
@@ -553,6 +600,29 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 					)
 				} else {
 					seenPurposes[key] = p.fixturePath
+				}
+			}
+			// D030: content-hash dedup. Runs AFTER purpose dedup so the
+			// reason field reflects the most-specific layer that fired.
+			// Decision-fixture-only for now; IR fixtures distinguish on
+			// `name` and adding a name-aware canonicalization is a
+			// follow-up decision when warranted.
+			if check.OK && isDecisionFixturePath(p.fixturePath) {
+				if hash, err := canonicalDecisionContentHash(p.fixturePath); err == nil && hash != "" {
+					key := contentKey{
+						category:    p.category,
+						fixtureType: meta.FixtureType,
+						hash:        hash,
+					}
+					if firstPath, dup := seenContentHashes[key]; dup {
+						check.OK = false
+						check.Reason = fmt.Sprintf(
+							"duplicate canonical content (D030): %s and %s have the same SHA-256 after stripping (id, title, examples, counterexamples, evidence, created_at, notes). The new fixture exercises no additional validator path. Declare a fixture whose remaining structural content (status, scope, source, affected_repos, ssot_owner, generated_artifacts, guards, weak, supersedes) differs from existing fixtures in the same (category=%s, fixture_type=%s) bucket",
+							p.fixturePath, firstPath, p.category, meta.FixtureType,
+						)
+					} else {
+						seenContentHashes[key] = p.fixturePath
+					}
 				}
 			}
 		}

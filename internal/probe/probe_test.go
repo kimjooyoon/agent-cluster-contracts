@@ -650,6 +650,96 @@ func TestNoiseMarkerD026PathScopedIDRule(t *testing.T) {
 	}
 }
 
+// D030 — canonical-content hash dedup for decision fixtures.
+
+func TestFixturesD030RejectsStructurallyIdenticalDecisionFixtures(t *testing.T) {
+	// Two fixtures with different id, title, examples, evidence.ref — but
+	// identical schema-relevant content — should be flagged as duplicate.
+	root := t.TempDir()
+	canonical := `{"id":"000-fixture-positive-original","title":"Canonical fixture","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"fixtures/positive/decision/a.json"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["the original"],"counterexamples":[],"created_at":"2026-06-03"}`
+	clone := `{"id":"000-fixture-positive-clone","title":"Different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"fixtures/positive/decision/b.json"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["a structural clone"],"counterexamples":[],"created_at":"2026-06-04"}`
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.json"), canonical)
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"original canonical purpose"}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/b.json"), clone)
+	write(t, filepath.Join(root, "fixtures/positive/decision/b.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"differently worded purpose for the same shape"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected D030 duplicate-canonical-content rejection, got OK")
+	}
+	hit := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "duplicate canonical content (D030)") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Errorf("expected 'duplicate canonical content (D030)' reason, got %+v", res.Checks)
+	}
+}
+
+func TestFixturesD030AcceptsStructurallyDifferentDecisionFixtures(t *testing.T) {
+	// Two fixtures whose structural content differs (different source,
+	// status, scope, etc.) must both pass — D030 must not over-reject.
+	root := t.TempDir()
+	topDown := `{"id":"000-fixture-positive-top","title":"x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
+	bottomUp := `{"id":"000-fixture-positive-bot","title":"y","owner":"t","status":"accepted","source":"bottom_up","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
+	write(t, filepath.Join(root, "fixtures/positive/decision/td.json"), topDown)
+	write(t, filepath.Join(root, "fixtures/positive/decision/td.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"top-down source acceptance"}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/bu.json"), bottomUp)
+	write(t, filepath.Join(root, "fixtures/positive/decision/bu.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"bottom-up source acceptance"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK (different source fields are structurally distinct), got %+v", res.Checks)
+	}
+}
+
+func TestFixturesD030DoesNotApplyToNonDecisionFixtures(t *testing.T) {
+	// IR aggregate dedup is a follow-up; D030 must not fire on work-item.
+	root := t.TempDir()
+	a := `{"kind":"aggregate","name":"a","slots":[{"name":"id","required":true,"type":"string"}],"source":{"dsl_file":"dsl/a.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`
+	b := `{"kind":"aggregate","name":"b","slots":[{"name":"id","required":true,"type":"string"}],"source":{"dsl_file":"dsl/b.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`
+	write(t, filepath.Join(root, "fixtures/positive/work-item/a.json"), a)
+	write(t, filepath.Join(root, "fixtures/positive/work-item/a.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"pass","purpose":"aggregate a"}`)
+	write(t, filepath.Join(root, "fixtures/positive/work-item/b.json"), b)
+	write(t, filepath.Join(root, "fixtures/positive/work-item/b.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"pass","purpose":"aggregate b"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		// We only assert D030 doesn't fire; if there's another failure
+		// for unrelated reasons, that's OK for this test.
+		for _, c := range res.Checks {
+			if strings.Contains(c.Reason, "D030") {
+				t.Errorf("D030 should not apply to ir-aggregate fixtures, got %q", c.Reason)
+			}
+		}
+	}
+}
+
+func TestCanonicalDecisionContentHashIsDeterministic(t *testing.T) {
+	// The canonical hash must be the same on repeated calls and must
+	// not depend on key ordering in the source JSON.
+	root := t.TempDir()
+	a := `{"id":"x","title":"x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":["p"],"areas":["g"]},"evidence":[{"kind":"file","ref":"y"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["e"],"counterexamples":[],"created_at":"2026-06-03"}`
+	b := `{"created_at":"2026-06-03","counterexamples":[],"examples":["e"],"guards":[],"generated_artifacts":[],"ssot_owner":"agent-cluster-contracts","affected_repos":["agent-cluster-contracts"],"evidence":[{"ref":"y","kind":"file"}],"scope":{"areas":["g"],"bounded_contexts":["p"]},"source":"top_down","status":"accepted","owner":"t","title":"x","id":"x"}`
+	pa := filepath.Join(root, "a.json")
+	pb := filepath.Join(root, "b.json")
+	write(t, pa, a)
+	write(t, pb, b)
+	ha, errA := canonicalDecisionContentHash(pa)
+	hb, errB := canonicalDecisionContentHash(pb)
+	if errA != nil || errB != nil {
+		t.Fatalf("hash err: a=%v b=%v", errA, errB)
+	}
+	if ha != hb {
+		t.Errorf("same content, different key order: got different hashes a=%s b=%s", ha, hb)
+	}
+}
+
 // D028 — case-insensitive "dumb-agent" substring in fixture data.
 
 func TestNoiseMarkerD028RejectsDumbAgentSubstringInData(t *testing.T) {
