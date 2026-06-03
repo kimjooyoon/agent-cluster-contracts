@@ -1,0 +1,6 @@
+{
+  "verifier": "decision validate",
+  "expected": "pass",
+  "from_role": "dumb-agent",
+  "supersedes": null
+}
