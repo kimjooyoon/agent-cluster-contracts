@@ -76,15 +76,40 @@ func emit(d *codegen.IRDoc, pkg string) string {
 	fmt.Fprintf(&b, "package %s\n\n", pkg)
 
 	typeName := codegen.Pascal(d.Name)
-	fmt.Fprintf(&b, "type %s struct {\n", typeName)
-	for _, s := range d.Slots {
-		fmt.Fprintf(&b, "\t%s %s `json:%q`\n", codegen.Pascal(s.Name), goTypeFor(s.Type), codegen.Snake(s.Name))
-	}
-	fmt.Fprintf(&b, "}\n")
 
-	if d.Kind == "event" {
-		fmt.Fprintf(&b, "\n// %sEventName is the wire identifier emitted in SSE payloads for %s.\n", typeName, typeName)
-		fmt.Fprintf(&b, "const %sEventName = %q\n", typeName, d.Name)
+	switch d.Kind {
+	case "aggregate", "event":
+		fmt.Fprintf(&b, "type %s struct {\n", typeName)
+		for _, s := range d.Slots {
+			fmt.Fprintf(&b, "\t%s %s `json:%q`\n", codegen.Pascal(s.Name), goTypeFor(s.Type), codegen.Snake(s.Name))
+		}
+		fmt.Fprintf(&b, "}\n")
+		if d.Kind == "event" {
+			fmt.Fprintf(&b, "\n// %sEventName is the wire identifier emitted in SSE payloads for %s.\n", typeName, typeName)
+			fmt.Fprintf(&b, "const %sEventName = %q\n", typeName, d.Name)
+		}
+	case "query":
+		// Decision 006: queries emit a wire-name const and a result-type
+		// alias. Backend must use these constants instead of hand-typing
+		// the wire identifier or the result shape (constraint C-006).
+		fmt.Fprintf(&b, "// %sQueryName is the GraphQL wire identifier for the %s query.\n",
+			typeName, d.Name)
+		fmt.Fprintf(&b, "const %sQueryName = %q\n", typeName, d.WireName)
+		if d.Returns != nil {
+			retType := codegen.Pascal(d.Returns.Type)
+			switch d.Returns.Shape {
+			case "list":
+				fmt.Fprintf(&b, "\n// %sResult is the result element collection for the %s query.\n",
+					typeName, d.Name)
+				fmt.Fprintf(&b, "type %sResult = []%s\n", typeName, retType)
+			case "one":
+				fmt.Fprintf(&b, "\n// %sResult is the result type for the %s query.\n",
+					typeName, d.Name)
+				fmt.Fprintf(&b, "type %sResult = %s\n", typeName, retType)
+			}
+		}
+	default:
+		fmt.Fprintf(&b, "// gen-go-client: unsupported IR kind %q for %s\n", d.Kind, d.Name)
 	}
 	return b.String()
 }

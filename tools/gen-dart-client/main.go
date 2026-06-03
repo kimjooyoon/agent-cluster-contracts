@@ -62,38 +62,54 @@ func emit(d *codegen.IRDoc) string {
 	fmt.Fprintf(&b, "// IR kind:   %s\n\n", d.Kind)
 
 	className := codegen.Pascal(d.Name)
-	// Class declaration
-	fmt.Fprintf(&b, "class %s {\n", className)
-	for _, s := range d.Slots {
-		fmt.Fprintf(&b, "  final %s %s;\n", dartTypeFor(s.Type), codegen.Camel(s.Name))
-	}
 
-	// Const constructor
-	fmt.Fprintf(&b, "\n  const %s({\n", className)
-	for _, s := range d.Slots {
-		fmt.Fprintf(&b, "    required this.%s,\n", codegen.Camel(s.Name))
-	}
-	fmt.Fprintf(&b, "  });\n")
+	switch d.Kind {
+	case "aggregate", "event":
+		// Class declaration
+		fmt.Fprintf(&b, "class %s {\n", className)
+		for _, s := range d.Slots {
+			fmt.Fprintf(&b, "  final %s %s;\n", dartTypeFor(s.Type), codegen.Camel(s.Name))
+		}
 
-	// fromJson
-	fmt.Fprintf(&b, "\n  factory %s.fromJson(Map<String, dynamic> json) => %s(\n", className, className)
-	for _, s := range d.Slots {
-		fmt.Fprintf(&b, "        %s: json[%q] as %s,\n", codegen.Camel(s.Name), codegen.Snake(s.Name), dartTypeFor(s.Type))
-	}
-	fmt.Fprintf(&b, "      );\n")
+		// Const constructor
+		fmt.Fprintf(&b, "\n  const %s({\n", className)
+		for _, s := range d.Slots {
+			fmt.Fprintf(&b, "    required this.%s,\n", codegen.Camel(s.Name))
+		}
+		fmt.Fprintf(&b, "  });\n")
 
-	// toJson
-	fmt.Fprintf(&b, "\n  Map<String, dynamic> toJson() => {\n")
-	for _, s := range d.Slots {
-		fmt.Fprintf(&b, "        %q: %s,\n", codegen.Snake(s.Name), codegen.Camel(s.Name))
-	}
-	fmt.Fprintf(&b, "      };\n")
+		// fromJson
+		fmt.Fprintf(&b, "\n  factory %s.fromJson(Map<String, dynamic> json) => %s(\n", className, className)
+		for _, s := range d.Slots {
+			fmt.Fprintf(&b, "        %s: json[%q] as %s,\n", codegen.Camel(s.Name), codegen.Snake(s.Name), dartTypeFor(s.Type))
+		}
+		fmt.Fprintf(&b, "      );\n")
 
-	fmt.Fprintf(&b, "}\n")
+		// toJson
+		fmt.Fprintf(&b, "\n  Map<String, dynamic> toJson() => {\n")
+		for _, s := range d.Slots {
+			fmt.Fprintf(&b, "        %q: %s,\n", codegen.Snake(s.Name), codegen.Camel(s.Name))
+		}
+		fmt.Fprintf(&b, "      };\n")
 
-	if d.Kind == "event" {
-		fmt.Fprintf(&b, "\n/// Wire identifier emitted in SSE payloads for [%s].\n", className)
-		fmt.Fprintf(&b, "const String %sEventName = %q;\n", codegen.Camel(d.Name), d.Name)
+		fmt.Fprintf(&b, "}\n")
+
+		if d.Kind == "event" {
+			fmt.Fprintf(&b, "\n/// Wire identifier emitted in SSE payloads for [%s].\n", className)
+			fmt.Fprintf(&b, "const String %sEventName = %q;\n", codegen.Camel(d.Name), d.Name)
+		}
+	case "query":
+		// Decision 006: queries emit a wire-name const. Result typing is
+		// done at the call site using the aggregate class.
+		fmt.Fprintf(&b, "/// GraphQL wire identifier for the %s query.\n", d.Name)
+		fmt.Fprintf(&b, "/// Frontend code must reference this constant instead of hand-typing\n")
+		fmt.Fprintf(&b, "/// the wire string (constraint C-006).\n")
+		fmt.Fprintf(&b, "const String %sQueryName = %q;\n", codegen.Camel(d.Name), d.WireName)
+		if d.Returns != nil {
+			fmt.Fprintf(&b, "\n/// Result shape: %s of %s.\n", d.Returns.Shape, d.Returns.Type)
+		}
+	default:
+		fmt.Fprintf(&b, "// gen-dart-client: unsupported IR kind %q for %s\n", d.Kind, d.Name)
 	}
 	return b.String()
 }

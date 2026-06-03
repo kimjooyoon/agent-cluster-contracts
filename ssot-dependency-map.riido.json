@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -116,6 +116,20 @@
       "path": "reports/environment-blockers/README.md",
       "schema": null,
       "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "dsl-list-work-items",
+      "kind": "dsl-source",
+      "path": "dsl/domain/list-work-items.lisp",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "ir-list-work-items",
+      "kind": "ir",
+      "path": "ir/domain/list-work-items.ir.json",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
     }
   ],
   "generation_links": [
@@ -158,6 +172,27 @@
       "from": "ir/domain/work-item-created.ir.json",
       "emitter": "tools/gen-dart-client",
       "to": "lib/contracts_client/work_item_created.dart",
+      "consumer_repo": "agent-cluster-frontend",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
+    },
+    {
+      "from": "dsl/domain/list-work-items.lisp",
+      "emitter": "dsl/emit-ir.lisp",
+      "to": "ir/domain/list-work-items.ir.json",
+      "consumer_repo": "agent-cluster-contracts",
+      "guard": "tools/irdrift (run in contracts.yml)"
+    },
+    {
+      "from": "ir/domain/list-work-items.ir.json",
+      "emitter": "tools/gen-go-client",
+      "to": "internal/contracts/list_work_items.go",
+      "consumer_repo": "agent-cluster-backend",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
+    },
+    {
+      "from": "ir/domain/list-work-items.ir.json",
+      "emitter": "tools/gen-dart-client",
+      "to": "lib/contracts_client/list_work_items.dart",
       "consumer_repo": "agent-cluster-frontend",
       "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
     }
@@ -225,6 +260,22 @@
       "consumer_path": "lib/contracts_client/work_item_created.dart",
       "via": "gen-dart-client emits this file from the IR; reserved for the SSE consumer slice",
       "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
+    },
+    {
+      "ssot": "ir-list-work-items",
+      "consumer_repo": "agent-cluster-backend",
+      "consumer_path": "internal/contracts/list_work_items.go",
+      "via": "gen-go-client emits ListWorkItemsQueryName const + ListWorkItemsResult alias; backend slice/server.go references the const instead of hand-typing the wire identifier",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
+      "planned": true
+    },
+    {
+      "ssot": "ir-list-work-items",
+      "consumer_repo": "agent-cluster-frontend",
+      "consumer_path": "lib/contracts_client/list_work_items.dart",
+      "via": "gen-dart-client emits listWorkItemsQueryName Dart const; frontend code references this constant",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
+      "planned": true
     }
   ],
   "ci_gates": [
@@ -243,7 +294,9 @@
         "agent-roles",
         "tools-readme",
         "probe-tool",
-        "environment-blockers-dir"
+        "environment-blockers-dir",
+        "dsl-list-work-items",
+        "ir-list-work-items"
       ]
     },
     {

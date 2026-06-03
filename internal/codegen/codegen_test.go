@@ -43,3 +43,22 @@ func TestSnake(t *testing.T) {
 		}
 	}
 }
+
+func TestIRDocQueryShape(t *testing.T) {
+	// Decision 006: kind=query IR documents carry WireName + Returns.
+	d := &IRDoc{
+		Kind:     "query",
+		Name:     "list-work-items",
+		WireName: "workItems",
+		Returns:  &QueryReturns{Shape: "list", Type: "work-item"},
+	}
+	if d.WireName != "workItems" {
+		t.Errorf("WireName = %q", d.WireName)
+	}
+	if d.Returns == nil || d.Returns.Shape != "list" || d.Returns.Type != "work-item" {
+		t.Errorf("Returns wrong: %+v", d.Returns)
+	}
+	if len(d.Slots) != 0 {
+		t.Errorf("query doc must not have slots, got %d", len(d.Slots))
+	}
+}
