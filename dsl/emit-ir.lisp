@@ -166,6 +166,28 @@ and including '/contracts/'. Falls back to ABS if the marker is absent."
                    ("dsl_file" . ,rel)
                    ("sha256"   . ,(sha256-of-file src)))))))
 
+(defun query->ir (entry)
+  (let* ((name         (getf entry :name))
+         (src          (getf entry :source-file))
+         (rel          (rel-to-contracts-root src))
+         (wire-name    (getf entry :wire-name))
+         (returns-list (getf entry :returns-list))
+         (returns-one  (getf entry :returns-one))
+         (returns      (cond
+                         (returns-list `(:obj ("shape" . "list")
+                                              ("type"  . ,(kebab returns-list))))
+                         (returns-one  `(:obj ("shape" . "one")
+                                              ("type"  . ,(kebab returns-one))))
+                         (t (error "query->ir ~A: missing returns" name)))))
+    `(:obj
+      ("kind"      . "query")
+      ("name"      . ,(kebab name))
+      ("wire_name" . ,wire-name)
+      ("returns"   . ,returns)
+      ("source"    . (:obj
+                      ("dsl_file" . ,rel)
+                      ("sha256"   . ,(sha256-of-file src)))))))
+
 ;; ---------------------------------------------------------------------------
 ;; Drive: walk the registry, write one IR file per entry.
 ;; ---------------------------------------------------------------------------
@@ -185,6 +207,7 @@ and including '/contracts/'. Falls back to ABS if the marker is absent."
   (case (getf entry :kind)
     (:aggregate (write-ir-entry entry (aggregate->ir entry)))
     (:event     (write-ir-entry entry (event->ir entry)))
+    (:query     (write-ir-entry entry (query->ir entry)))
     (t (error "emit-ir: unknown kind ~S in registry entry ~S"
               (getf entry :kind) entry))))
 

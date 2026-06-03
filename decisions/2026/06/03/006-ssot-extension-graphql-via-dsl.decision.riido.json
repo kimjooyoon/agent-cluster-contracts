@@ -1,0 +1,59 @@
+{
+  "id": "006-ssot-extension-graphql-via-dsl",
+  "title": "SSOT extension: GraphQL query/mutation/subscription wire identifiers + result shapes flow from DSL → IR → codegen",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "dsl",
+      "ir",
+      "tooling",
+      "backend",
+      "frontend"
+    ]
+  },
+  "source": "top_down",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "003-first-vertical-slice"
+    },
+    {
+      "kind": "decision",
+      "ref": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/slice/server.go"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal for ssot extension to graphql endpoints"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts",
+    "agent-cluster-backend",
+    "agent-cluster-frontend"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Out of scope for THIS decision (each gets its own future decision): defmutation",
+    "defsubscription",
+    "defpage",
+    "defroute",
+    "deflifecycle",
+    "defpolicy",
+    "full GraphQL schema generation",
+    "query argument schemas",
+    "response shape generation. defquery is the first/smallest step."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

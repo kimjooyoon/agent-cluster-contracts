@@ -1,0 +1,13 @@
+{
+  "kind": "query",
+  "name": "list-work-items",
+  "returns": {
+    "shape": "list",
+    "type": "work-item"
+  },
+  "source": {
+    "dsl_file": "dsl/domain/list-work-items.lisp",
+    "sha256": "bef58978256fe9f19af16f3d539041c168d2210c7a96c4a72e31eb43e3a32b0b"
+  },
+  "wire_name": "workItems"
+}

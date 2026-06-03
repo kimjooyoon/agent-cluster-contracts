@@ -13,16 +13,31 @@ import (
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/jsonutil"
 )
 
-// IRDoc mirrors the emitter output. Kind is "aggregate" or "event".
+// IRDoc mirrors the emitter output. Kind is "aggregate", "event", or "query".
+// Fields are populated according to Kind; consumers must branch on Kind.
 type IRDoc struct {
 	Kind   string `json:"kind"`
 	Name   string `json:"name"`
-	Slots  []Slot `json:"slots"`
 	Source Source `json:"source"`
+
+	// Slots applies to Kind=aggregate and Kind=event.
+	Slots []Slot `json:"slots,omitempty"`
+
+	// WireName + Returns apply to Kind=query (decision 006).
+	WireName string         `json:"wire_name,omitempty"`
+	Returns  *QueryReturns  `json:"returns,omitempty"`
 
 	// Path the file was loaded from, relative to the contracts repo root.
 	// Populated by LoadAll, not deserialized from JSON.
 	Path string `json:"-"`
+}
+
+// QueryReturns describes a Kind=query result shape.
+type QueryReturns struct {
+	// Shape is "list" or "one".
+	Shape string `json:"shape"`
+	// Type is the kebab-case aggregate name (e.g. "work-item").
+	Type string `json:"type"`
 }
 
 type Slot struct {

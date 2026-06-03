@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -81,6 +81,14 @@
       "description": "A .json file under fixtures/positive/ or fixtures/negative/ with a .meta.json sidecar declaring fixture_type, expected (pass|fail), and optionally expected_error_contains. Walked by `probe fixtures`. v1 supports fixture_type=decision only.",
       "examples": ["fixtures/positive/decision/min.json + min.meta.json"],
       "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "name": "GraphQLQuery",
+      "kind": "process",
+      "owner": "agent-cluster-contracts",
+      "description": "Read-only GraphQL field defined by defquery in DSL. Its wire-name and returns-shape are SSOT; backend resolvers and frontend clients reference them via generated constants (Go: <Name>QueryName + <Name>Result; Dart: <camelName>QueryName). The hand-written GraphQL parser+executor remains hand-written until a separate library decision.",
+      "examples": ["defquery list-work-items :wire-name \"workItems\" :returns-list work-item"],
+      "decision": "006-ssot-extension-graphql-via-dsl"
     }
   ],
   "relationships": [
@@ -132,6 +140,20 @@
       "to": "ProbeBaseline",
       "example": "Every environment-blocker report cites the probe preflight output that justified filing it.",
       "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "from": "GraphQLQuery",
+      "kind": "references",
+      "to": "WorkItem",
+      "example": "list-work-items returns a list of WorkItem; the returns.type in IR points to the aggregate kebab-name.",
+      "decision": "006-ssot-extension-graphql-via-dsl"
+    },
+    {
+      "from": "GeneratedClient",
+      "kind": "implements",
+      "to": "GraphQLQuery",
+      "example": "backend/internal/contracts/list_work_items.go exposes ListWorkItemsQueryName and ListWorkItemsResult; frontend/lib/contracts_client/list_work_items.dart exposes listWorkItemsQueryName.",
+      "decision": "006-ssot-extension-graphql-via-dsl"
     }
   ],
   "constraints": [
@@ -204,6 +226,21 @@
       ],
       "guard_candidate": { "tool": "probe preflight (already enforced for dumb-agent via AGENT_CONTRACT.md; future hook: pre-commit refusing fixture writes when probe preflight is red)", "status": "pending" },
       "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "id": "C-006",
+      "rule": "Backend and frontend must never hand-type a GraphQL query/mutation/subscription wire identifier or result shape. They reference the generated constants emitted by gen-go-client / gen-dart-client from kind=query IR (and future kind=mutation, kind=subscription IR).",
+      "rationale": "GraphQL wire identifiers are vocabulary. Per C-001 vocabulary is contracts-owned and never re-declared by consumers. Hand-typing \"workItems\" in backend would mean the contracts repo can rename the query but the backend would silently keep the old wire identifier — exactly the drift the SSOT chain is supposed to prevent.",
+      "examples": [
+        "backend/internal/slice/server.go uses contracts.ListWorkItemsQueryName instead of the literal \"workItems\".",
+        "frontend Dart client imports listWorkItemsQueryName from generated lib/contracts_client/list_work_items.dart."
+      ],
+      "counterexamples": [
+        "backend writes const supportedQuery = \"{ workItems { id title state } }\" with \"workItems\" as a literal — the wire identifier is duplicated outside SSOT and will drift.",
+        "frontend hardcodes 'workItems' in a GraphQL document string — same drift class."
+      ],
+      "guard_candidate": { "tool": "contracts-drift workflow already catches changes to generated files; a future grep-based check could refuse literal occurrences of any generated query wire-name outside lib/contracts_client/ or internal/contracts/", "status": "pending" },
+      "decision": "006-ssot-extension-graphql-via-dsl"
     }
   ]
 }

@@ -12,7 +12,8 @@
   (:use #:cl)
   (:export #:*registry*
            #:defaggregate
-           #:defevent))
+           #:defevent
+           #:defquery))
 
 (in-package #:agent-cluster.dsl)
 
@@ -59,5 +60,40 @@ Example:
     `(push (list :kind :event
                  :name ',name
                  :slots ',slots
+                 :source-file ,src)
+           *registry*)))
+
+(defmacro defquery (name &key wire-name returns-list returns-one)
+  "Declare a read-only GraphQL query whose wire identifier and result shape
+become SSOT for backend (Go) and frontend (Dart) consumers.
+
+Decision 006 established this form. Mutations and subscriptions get their own
+DSL forms in later decisions; do not extend defquery to cover them.
+
+Arguments:
+  :wire-name     STRING — the exact GraphQL field name on the wire
+                          (e.g. \"workItems\"). Backend resolver and frontend
+                          client both reference this via generated constants.
+  :returns-list  SYMBOL — when set, the query returns a list of that aggregate
+                          (e.g. work-item). Mutually exclusive with :returns-one.
+  :returns-one   SYMBOL — when set, the query returns a single value of that
+                          aggregate. Mutually exclusive with :returns-list.
+
+Example:
+  (defquery list-work-items
+    :wire-name \"workItems\"
+    :returns-list work-item)"
+  (let ((src (%current-source-file)))
+    (when (and returns-list returns-one)
+      (error "defquery ~A: :returns-list and :returns-one are mutually exclusive" name))
+    (unless (or returns-list returns-one)
+      (error "defquery ~A: must declare :returns-list or :returns-one" name))
+    (unless (stringp wire-name)
+      (error "defquery ~A: :wire-name must be a string literal" name))
+    `(push (list :kind :query
+                 :name ',name
+                 :wire-name ,wire-name
+                 :returns-list ',returns-list
+                 :returns-one ',returns-one
                  :source-file ,src)
            *registry*)))
