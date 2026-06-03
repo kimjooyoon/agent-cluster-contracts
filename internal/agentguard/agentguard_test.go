@@ -273,8 +273,11 @@ func dumbAgentMergeRole() *Role {
 		},
 		ForbiddenPaths: []string{
 			"tools/**", ".github/workflows/**", "decisions/**", "dsl/**",
-			"ir/schema/**", "ssot-dependency-map.riido.json",
-			"concept-map/concept-map.riido.json", "agent-roles.riido.json",
+			"ir/schema/**",
+			"ssot-dependency-map.riido.json", "ssot-dependency-map.schema.json",
+			"concept-map/concept-map.riido.json", "concept-map/schema.riido.json",
+			"agent-roles.riido.json", "agent-roles.schema.json",
+			"purpose-banlist.riido.json", "purpose-banlist.schema.json",
 		},
 		MaxFilesPerPR: 5,
 	}
@@ -288,6 +291,41 @@ func TestMergeCheckSafeFixturePRAllowed(t *testing.T) {
 	})
 	if !res.Allowed || res.Status != "merge_allowed" {
 		t.Errorf("expected merge_allowed, got %+v", res)
+	}
+}
+
+// D031 — schemas of SSOT artifacts must be in dumb-agent forbidden_paths
+// symmetrically with their data files. Schemas are MORE fundamental than
+// data — if dumb-agent could weaken a schema, every downstream validation
+// silently relaxes.
+
+func TestD031ForbidsSSOTSchemasSymmetrically(t *testing.T) {
+	r := dumbAgentMergeRole()
+	pairs := [][2]string{
+		{"ssot-dependency-map.riido.json", "ssot-dependency-map.schema.json"},
+		{"concept-map/concept-map.riido.json", "concept-map/schema.riido.json"},
+		{"agent-roles.riido.json", "agent-roles.schema.json"},
+		{"purpose-banlist.riido.json", "purpose-banlist.schema.json"},
+	}
+	for _, p := range pairs {
+		t.Run(p[1], func(t *testing.T) {
+			// Both data and schema must be rejected.
+			for _, path := range p {
+				res := Check(r, []string{path})
+				if res.OK {
+					t.Errorf("%s: expected forbidden, got OK", path)
+				}
+				found := false
+				for _, v := range res.Violations {
+					if v.Path == path && v.Kind == "forbidden" {
+						found = true
+					}
+				}
+				if !found {
+					t.Errorf("%s: expected violation kind=forbidden, got %v", path, res.Violations)
+				}
+			}
+		})
 	}
 }
 

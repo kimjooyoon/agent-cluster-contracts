@@ -1,0 +1,56 @@
+{
+  "id": "031-forbid-ssot-schemas",
+  "title": "dumb-agent forbidden_paths symmetry — every SSOT data file pairs with its schema",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit pre-D031: agent-roles.riido.json had purpose-banlist.riido.json + purpose-banlist.schema.json (the only data+schema pair correctly listed). The other three SSOTs (ssot-dependency-map, concept-map, agent-roles itself) only listed data files; schemas were missing from forbidden_paths"
+    },
+    {
+      "kind": "decision",
+      "ref": "018-fixture-purpose-banlist — set the (data, schema) pair convention by adding both purpose-banlist files; D031 brings the other three SSOTs into symmetry"
+    },
+    {
+      "kind": "decision",
+      "ref": "009-agentguard-validate-and-roles-schema — introduced agent-roles.schema.json; D031 closes the gap that the schema itself was not forbidden"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "schema",
+      "ref": "agent-roles.riido.json — dumb-agent forbidden_paths extended with agent-roles.schema.json, concept-map/schema.riido.json, ssot-dependency-map.schema.json",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/agentguard/agentguard_test.go TestD031ForbidsSSOTSchemasSymmetrically — iterates over all four (data, schema) pairs and asserts both halves trigger Check kind=forbidden",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-016 — codifies the symmetric pairing convention so future SSOT additions register both files",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "agent-roles.schema.json: dumb-agent attempting to weaken role validation by editing the schema is now rejected with `FORBIDDEN: matches forbidden_paths pattern \"agent-roles.schema.json\"`.",
+    "concept-map/schema.riido.json: similarly rejected; previously implicitly off-limits via 'not in allowed_paths' but the explicit listing matches the project's discoverable-defense convention.",
+    "Future SSOT additions must register both halves; the convention is documented in AGENT_CONTRACT.md and codified in C-016."
+  ],
+  "counterexamples": [
+    "decisions/schema.riido.json is covered by the broader `decisions/**` glob; not double-listed.",
+    "ir/schema/ir.schema.json is covered by `ir/schema/**`; not double-listed.",
+    "ir/domain/ data files are NOT in forbidden_paths because dumb-agent's IR work surface is ir/candidates/ (separate sandbox)."
+  ],
+  "created_at": "2026-06-03"
+}
