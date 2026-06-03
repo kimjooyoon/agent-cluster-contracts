@@ -1,5 +1,4 @@
 {
-  "fixture_type": "decision",
   "id": "999-fixture-positive",
   "title": "Positive fixture: minimal valid decision record shape",
   "owner": "kimjooyoon",
