@@ -252,6 +252,100 @@ func TestVerifyForbiddenSymmetryNilTolerant(t *testing.T) {
 	}
 }
 
+// D038 — VerifyFileSystemCoverage: every dsl/**/*.lisp and
+// ir/domain/*.ir.json on disk must be registered in the dep map.
+
+func TestVerifyFileSystemCoverageAllRegistered(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "dsl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "ir/domain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "dsl/foo.lisp"), []byte("(defun x () nil)"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "ir/domain/bar.ir.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "dsl-foo", Kind: "dsl-source", Path: "dsl/foo.lisp"},
+		{ID: "ir-bar", Kind: "ir", Path: "ir/domain/bar.ir.json"},
+	}}
+	if errs := VerifyFileSystemCoverage(m, root); len(errs) != 0 {
+		t.Errorf("expected 0 errors, got %v", errs)
+	}
+}
+
+func TestVerifyFileSystemCoverageFlagsUnregisteredDSL(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "dsl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "dsl/orphan.lisp"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "other", Kind: "dsl-source", Path: "dsl/other.lisp"},
+	}}
+	errs := VerifyFileSystemCoverage(m, root)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "dsl/orphan.lisp") {
+		t.Errorf("violation should cite the orphan, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyFileSystemCoverageFlagsUnregisteredIR(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "ir/domain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "ir/domain/orphan.ir.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{SsotArtifacts: []SsotArtifact{}}
+	errs := VerifyFileSystemCoverage(m, root)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "ir/domain/orphan.ir.json") {
+		t.Errorf("violation should cite the orphan, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyFileSystemCoverageIgnoresUnrelatedFiles(t *testing.T) {
+	// Non-.lisp under dsl/ and non-.ir.json under ir/domain/ are out of scope.
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "dsl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "ir/domain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "dsl/README.md"), []byte("# notes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "ir/domain/notes.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{}
+	if errs := VerifyFileSystemCoverage(m, root); len(errs) != 0 {
+		t.Errorf("non-.lisp / non-.ir.json files must not trip the rule, got %v", errs)
+	}
+}
+
+func TestVerifyFileSystemCoverageMissingDirsAreOK(t *testing.T) {
+	// If dsl/ or ir/domain/ don't exist (fresh repo), no errors.
+	root := t.TempDir()
+	m := &Map{}
+	if errs := VerifyFileSystemCoverage(m, root); len(errs) != 0 {
+		t.Errorf("missing dirs should not produce errors, got %v", errs)
+	}
+}
+
 // D035 — VerifyToolsReadmeCoverage: every verifier/code-generator
 // ssot_artifact under tools/ must have a section heading and a path
 // mention in tools/README.md.

@@ -1,5 +1,5 @@
 {
-  "version": "0.25.0",
+  "version": "0.26.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -477,6 +477,22 @@
       ],
       "guard_candidate": { "tool": "internal/decision.Validate (D036) — validBoundedContexts map mirrors decisions/schema.riido.json's scope.bounded_contexts enum. Both layers reject unknown BCs: JSON Schema rejects parse-time; decision.Validate rejects load-time before any cross-check runs. Test TestValidateRejectsUnknownBoundedContexts covers 5 typo variants.", "status": "implemented" },
       "decision": "036-bcs-enum"
+    },
+    {
+      "id": "C-021",
+      "rule": "Every file under canonical SSOT source directories must be registered as an ssot_artifact in ssot-dependency-map.riido.json. Currently scoped to dsl/**/*.lisp and ir/domain/*.ir.json — directories where each file is canonical SSOT and the set is small/stable. Forward direction (declared paths exist) is covered by ssotdeps verify; D038 adds the inverse (existing files are declared) so silent drift is impossible.",
+      "rationale": "Audit pre-D038 confirmed dsl/ and ir/domain/ were in sync, but nothing executable enforced it. Same recurring drift class as D033 (workflow → dep map), applied to file-system → dep map. D033's tools/ inverse + D038's dsl + ir/domain inverse give the dep map a complete catalog invariant for the three contracts-owned source directories where each file is canonically tracked.",
+      "examples": [
+        "After D038: adding dsl/bogus-unregistered.lisp without a dep map entry fails ssotdeps cross-check with 'filesystem coverage drift (D038): dsl/bogus-unregistered.lisp exists on disk but is NOT registered as an ssot_artifact'.",
+        "Adding ir/domain/new-aggregate.ir.json with a matching dsl source and an emitter run + dep map entry passes. Add the dep map entry first, then the file, to keep CI green at each step."
+      ],
+      "counterexamples": [
+        "decisions/**/*.decision.riido.json files are NOT subject to D038 — only initial-agreement is in the dep map; the directory itself is the registry, walked by decision validate. Conventional, not a gap.",
+        "tools/ has its own coverage rule (D033 workflow-tool coverage); D038 doesn't double-check tools.",
+        "Non-.lisp under dsl/ and non-.ir.json under ir/domain/ are unaffected — only the canonical source extensions are required to be registered."
+      ],
+      "guard_candidate": { "tool": "internal/ssotdeps.VerifyFileSystemCoverage (D038) — walks dsl/**/*.lisp and ir/domain/*.ir.json; asserts each file's path is in m.SsotArtifacts. Wired into ssotdeps cross-check; 6th sub-check axis", "status": "implemented" },
+      "decision": "038-filesystem-coverage"
     }
   ]
 }
