@@ -1,5 +1,5 @@
 {
-  "version": "0.10.0",
+  "version": "0.11.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -317,6 +317,21 @@
       ],
       "guard_candidate": { "tool": "internal/probe.NormalizePurpose (D017): regex strip + collapse + lowercase before dedup comparison", "status": "implemented" },
       "decision": "017-fixture-purpose-normalized-dedup"
+    },
+    {
+      "id": "C-011",
+      "rule": "probe fixtures consults purpose-banlist.riido.json before dedup. Any fixture whose NormalizePurpose(meta.purpose) matches a banlist entry is rejected — even if it is the only such fixture in the set. The banlist is SSOT: entries are added or removed only via decision records that cite the seeded_by_decision id.",
+      "rationale": "D017 catches DUPLICATE normalized purposes within a fixture set. Observed within 24h: dumb-agent re-files the cycle-N template purpose after its previous occurrence has been deleted — D017 sees only ONE occurrence, no duplicate, allows. C-011 makes known noise templates persistently banned, so deletion does not reset the lockout.",
+      "examples": [
+        "purpose-banlist seeded with 'ensure a unique accepted decision fixture validates successfully' by D018. Any future fixture whose purpose normalizes to that string is rejected with a citation to D018.",
+        "Adding a new noise template to the banlist requires a new decision. The decision records the observed fixture (link/sha), the template, and the reason."
+      ],
+      "counterexamples": [
+        "Silently removing an entry from purpose-banlist.riido.json — explicitly forbidden. Removal requires a superseding decision that explains why the template is no longer noise.",
+        "Editing the banlist file outside of a decision-record PR — caught by agentguard (purpose-banlist.riido.json should be in forbidden_paths for dumb-agent; smart-agent edits only via decision-bearing PRs)."
+      ],
+      "guard_candidate": { "tool": "internal/probe.loadPurposeBanlist + banlistMatch (D018): regex-normalized comparison against the SSOT banlist before dedup", "status": "implemented" },
+      "decision": "018-fixture-purpose-banlist"
     }
   ]
 }
