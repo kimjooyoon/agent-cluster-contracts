@@ -1,0 +1,8 @@
+{
+  "fixture_type": "decision",
+  "verifier": "decision validate",
+  "expected": "pass",
+  "from_role": "dumb-agent",
+  "supersedes": null,
+  "purpose": "Add compact governance fixture with multi-repo impact"
+}
