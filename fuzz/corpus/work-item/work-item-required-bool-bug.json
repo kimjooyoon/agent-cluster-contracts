@@ -1,0 +1,31 @@
+{
+  "kind": "aggregate",
+  "name": "work-item",
+  "slots": [
+    {
+      "name": "id",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "name": "title",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "name": "state",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "name": "invalid_required_field",
+      "required": "yes",
+      "type": "string"
+    }
+  ],
+  "source": {
+    "dsl_file": "dsl/domain/work-item.lisp",
+    "sha256": "85d...invalid-hash"
+  },
+  "fuzzer_note": "negative-shape expected"
+}
