@@ -252,6 +252,93 @@ func TestVerifyForbiddenSymmetryNilTolerant(t *testing.T) {
 	}
 }
 
+// D033 — VerifyWorkflowToolCoverage: every ./bin/<name> reference in
+// .github/workflows/*.yml must be registered as an ssot_artifact.
+
+func TestVerifyWorkflowToolCoverageAllRegistered(t *testing.T) {
+	root := t.TempDir()
+	wfDir := filepath.Join(root, ".github", "workflows")
+	if err := os.MkdirAll(wfDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wfDir, "ci.yml"),
+		[]byte("steps:\n  - run: ./bin/foo --json\n  - run: ./bin/bar verify\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "foo-tool", Kind: "verifier", Path: "tools/foo/main.go"},
+		{ID: "bar-tool", Kind: "verifier", Path: "tools/bar/main.go"},
+	}}
+	if errs := VerifyWorkflowToolCoverage(m, wfDir); len(errs) != 0 {
+		t.Errorf("expected 0 errors, got %v", errs)
+	}
+}
+
+func TestVerifyWorkflowToolCoverageFlagsMissing(t *testing.T) {
+	root := t.TempDir()
+	wfDir := filepath.Join(root, ".github", "workflows")
+	if err := os.MkdirAll(wfDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wfDir, "ci.yml"),
+		[]byte("steps:\n  - run: ./bin/registered --json\n  - run: ./bin/unregistered verify\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "registered-tool", Kind: "verifier", Path: "tools/registered/main.go"},
+	}}
+	errs := VerifyWorkflowToolCoverage(m, wfDir)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "unregistered") || !strings.Contains(errs[0].Error(), "ci.yml") {
+		t.Errorf("violation should cite tool and workflow, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyWorkflowToolCoverageDeduplicatesAcrossSteps(t *testing.T) {
+	// Same tool referenced 3 times in one workflow → still one violation.
+	root := t.TempDir()
+	wfDir := filepath.Join(root, ".github", "workflows")
+	if err := os.MkdirAll(wfDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wfDir, "ci.yml"),
+		[]byte("steps:\n  - run: ./bin/foo a\n  - run: ./bin/foo b\n  - run: ./bin/foo c\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{}
+	errs := VerifyWorkflowToolCoverage(m, wfDir)
+	if len(errs) != 1 {
+		t.Errorf("expected 1 violation (deduplicated), got %d: %v", len(errs), errs)
+	}
+}
+
+func TestVerifyWorkflowToolCoverageMissingDirIsOK(t *testing.T) {
+	// If the workflows dir doesn't exist at all, no error — caller knows.
+	m := &Map{}
+	if errs := VerifyWorkflowToolCoverage(m, "/nonexistent/path"); len(errs) != 0 {
+		t.Errorf("missing dir should not produce errors, got %v", errs)
+	}
+}
+
+func TestVerifyWorkflowToolCoverageIgnoresNonBinReferences(t *testing.T) {
+	// References that don't look like `./bin/<name>` are not flagged.
+	root := t.TempDir()
+	wfDir := filepath.Join(root, ".github", "workflows")
+	if err := os.MkdirAll(wfDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wfDir, "ci.yml"),
+		[]byte("steps:\n  - run: go test ./internal/...\n  - run: bin/foo  # missing leading ./\n  - run: ../bin/foo  # not at repo root\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Map{}
+	if errs := VerifyWorkflowToolCoverage(m, wfDir); len(errs) != 0 {
+		t.Errorf("non-./bin/ refs should not be flagged, got %v", errs)
+	}
+}
+
 func TestModeString(t *testing.T) {
 	if ModeLocal.String() != "local" {
 		t.Errorf("ModeLocal.String() = %q, want local", ModeLocal.String())

@@ -142,11 +142,15 @@ func cmdCrossCheck(args []string) {
 		}
 		errs = append(errs, ssotdeps.VerifyForbiddenSymmetry(m, roles)...)
 	}
+	// D033: workflow-tool coverage. Every ./bin/<name> reference in a
+	// .github/workflows/*.yml file must be registered as an ssot_artifact.
+	workflowsDir := root + "/.github/workflows"
+	errs = append(errs, ssotdeps.VerifyWorkflowToolCoverage(m, workflowsDir)...)
 	if *asJSON {
 		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": len(errs) == 0, "errors": errMsgs(errs)})
 	} else {
 		if len(errs) == 0 {
-			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths)\n", len(m.Pending), pairsChecked)
+			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths; all ./bin/<tool> workflow references registered as ssot_artifacts)\n", len(m.Pending), pairsChecked)
 		} else {
 			fmt.Fprintf(os.Stderr, "ssotdeps cross-check: %d violation(s)\n", len(errs))
 			for _, e := range errs {

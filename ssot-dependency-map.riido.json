@@ -1,5 +1,5 @@
 {
-  "version": "0.14.0",
+  "version": "0.15.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -170,6 +170,48 @@
       "id": "docfresh-tool",
       "kind": "verifier",
       "path": "tools/docfresh/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "decision-tool",
+      "kind": "verifier",
+      "path": "tools/decision/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "ssotdeps-tool",
+      "kind": "verifier",
+      "path": "tools/ssotdeps/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "conceptmap-tool",
+      "kind": "verifier",
+      "path": "tools/conceptmap/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "agentguard-tool",
+      "kind": "verifier",
+      "path": "tools/agentguard/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "irdrift-tool",
+      "kind": "verifier",
+      "path": "tools/irdrift/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "secretscan-tool",
+      "kind": "verifier",
+      "path": "tools/secretscan/main.go",
       "schema": null,
       "owned_by": "agent-cluster-contracts"
     }
@@ -377,18 +419,23 @@
         "agent-roles-schema",
         "ssot-dep-map-schema",
         "vocablint-tool",
-        "docfresh-tool"
+        "docfresh-tool",
+        "decision-tool",
+        "ssotdeps-tool",
+        "conceptmap-tool",
+        "agentguard-tool",
+        "irdrift-tool"
       ]
     },
     {
       "repo": "agent-cluster-contracts",
       "workflow": ".github/workflows/security.yml",
-      "verifies": ["raw-secret patterns in working tree"]
+      "verifies": ["raw-secret patterns in working tree", "secretscan-tool"]
     },
     {
       "repo": "agent-cluster-contracts",
       "workflow": ".github/workflows/dumb-agent-safety.yml",
-      "verifies": ["agent-roles per-PR path allowlist enforcement"]
+      "verifies": ["agent-roles per-PR path allowlist enforcement", "agentguard-tool"]
     },
     {
       "repo": "agent-cluster-contracts",

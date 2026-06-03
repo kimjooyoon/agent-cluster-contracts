@@ -1,5 +1,5 @@
 {
-  "version": "0.20.0",
+  "version": "0.21.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -415,6 +415,21 @@
       ],
       "guard_candidate": { "tool": "internal/agentguard.Check (D031) + internal/ssotdeps.VerifyForbiddenSymmetry (D032) — D031 added the missing schema entries; D032 makes C-016 executable so any future SSOT addition with mismatched (data, schema) forbidden_paths coverage fails ssotdeps cross-check in CI", "status": "implemented" },
       "decision": "032-c016-executable-guard"
+    },
+    {
+      "id": "C-017",
+      "rule": "Every tool referenced from a `.github/workflows/*.yml` file as `./bin/<name>` MUST be registered as an ssot_artifact in ssot-dependency-map.riido.json with kind=verifier and path=tools/<name>/main.go. The dep map's `ssot_artifacts` list is the canonical catalog of contracts-owned tools; tools that exist on disk AND are invoked by CI but are absent from this catalog become invisible to D031/D032 audits and to the dep map's `verify` path-existence check.",
+      "rationale": "Audit pre-D033: 6 CI-bound tools (agentguard, conceptmap, decision, irdrift, secretscan, ssotdeps) existed on disk and were invoked in 3 workflow files but were NOT in the dep map. Adding them by hand fixes the immediate drift; making the rule executable closes the round-trip so the next person who adds a CI tool can't forget the registration. Same pattern as D025 docfresh and D032 forbidden-paths-symmetry: prose rule promoted to CI gate.",
+      "examples": [
+        ".github/workflows/contracts.yml has `./bin/decision validate` step → ssot_artifact `decision-tool` with path tools/decision/main.go must exist. D033 added decision-tool plus 5 sibling verifier entries.",
+        "Simulated removal of agentguard-tool from the dep map: ssotdeps cross-check produced 3 violations (contracts.yml + dumb-agent-automerge.yml + dumb-agent-safety.yml each reference ./bin/agentguard)."
+      ],
+      "counterexamples": [
+        "Tools that exist on disk but are NOT referenced by any workflow (devpattern, knowledge) are out of scope — they're internal infrastructure. The rule only fires on CI-bound references.",
+        "References like `bin/foo` (missing leading `./`) or `../bin/foo` (not at repo root) are NOT matched by the regex `(^|[^.])\\./bin/...` so non-CI-shell-invocations don't trip the rule."
+      ],
+      "guard_candidate": { "tool": "internal/ssotdeps.VerifyWorkflowToolCoverage (D033) — regex over .github/workflows/*.yml extracts ./bin/<tool> references and asserts each maps to an ssot_artifact with path tools/<tool>/main.go. Wired into ssotdeps cross-check; runs in contracts.yml on every PR", "status": "implemented" },
+      "decision": "033-register-ci-tools"
     }
   ]
 }

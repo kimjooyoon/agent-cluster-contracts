@@ -1,0 +1,61 @@
+{
+  "id": "033-register-ci-tools",
+  "title": "Register 6 missing CI-bound tools in dep map + executable workflow-tool coverage guard",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit revealed 6 CI-bound verifier tools (agentguard, conceptmap, decision, irdrift, secretscan, ssotdeps) exist on disk and are invoked in .github/workflows/*.yml but were NOT registered as ssot_artifacts in ssot-dependency-map.riido.json. Invisible to D031/D032 audits and to the dep map's catalog-of-tools invariant"
+    },
+    {
+      "kind": "decision",
+      "ref": "032-c016-executable-guard - same executable-pattern: turn a recurring SSOT-mirror failure mode into a CI gate. D033 extends ssotdeps cross-check with VerifyWorkflowToolCoverage alongside VerifyForbiddenSymmetry"
+    },
+    {
+      "kind": "decision",
+      "ref": "022-ssotdeps-cross-check - the cross-check subcommand both D032 and D033 plug into"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/ssotdeps.VerifyWorkflowToolCoverage - regex scan over .github/workflows/*.yml extracts ./bin/<tool> references and asserts each maps to an ssot_artifact with path tools/<tool>/main.go. Reuses the same dep map already loaded by cross-check; no new file I/O beyond walking the workflows dir",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "ssot-dependency-map.riido.json - 6 new ssot_artifacts (decision-tool, ssotdeps-tool, conceptmap-tool, agentguard-tool, irdrift-tool, secretscan-tool) plus ci_gates verifies arrays updated; bumped v0.14.0 to v0.15.0",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-017 - codifies the rule; concept-map bumped v0.20.0 to v0.21.0",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/ssotdeps/ssotdeps_test.go TestVerifyWorkflowToolCoverageAllRegistered + TestVerifyWorkflowToolCoverageFlagsMissing + TestVerifyWorkflowToolCoverageDeduplicatesAcrossSteps + TestVerifyWorkflowToolCoverageMissingDirIsOK + TestVerifyWorkflowToolCoverageIgnoresNonBinReferences (5 cases including the ../bin/foo false-positive guard)",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Pre-D033: contracts.yml has `./bin/decision validate` but ssot_artifacts lacks decision-tool. New cross-check would fire: 'workflow contracts.yml references ./bin/decision but tools/decision/main.go is not registered as an ssot_artifact'.",
+    "Post-D033: all 6 missing tools added; ssotdeps cross-check reports 'all ./bin/<tool> workflow references registered as ssot_artifacts'.",
+    "Simulated removal of agentguard-tool from dep map: 3 violations reported (one per workflow that references ./bin/agentguard - contracts.yml, dumb-agent-automerge.yml, dumb-agent-safety.yml)."
+  ],
+  "counterexamples": [
+    "devpattern and knowledge exist on disk but are not invoked by any workflow; they are NOT subject to the rule (intentionally - they are operator-driven internal tools, not CI verifiers). If/when they become CI-bound, the rule will catch the missing registration on the workflow PR.",
+    "References like `bin/foo` (missing leading `./`) or `../bin/foo` (not at repo root) are not matched by the regex `(^|[^.])\\./bin/...`, so unrelated shell commands don't trip the rule. Tested explicitly by TestVerifyWorkflowToolCoverageIgnoresNonBinReferences.",
+    "Same tool referenced N times in one workflow produces 1 violation (deduplication by (tool, workflow) tuple) - actionable signal without spam."
+  ],
+  "created_at": "2026-06-03"
+}
