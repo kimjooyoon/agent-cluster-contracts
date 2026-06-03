@@ -4,5 +4,5 @@
   "expected": "pass",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "Verify an accepted top-down governance decision fixture for cycle 44"
+  "purpose": "Validate that a governance decision with platform bounded context is accepted for cycle 44 coverage"
 }
