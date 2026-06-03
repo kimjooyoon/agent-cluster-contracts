@@ -3,5 +3,6 @@
   "verifier": "decision validate",
   "expected": "pass",
   "from_role": "dumb-agent",
-  "supersedes": null
+  "supersedes": null,
+  "purpose": "Ensure a canonical accepted decision fixture validates successfully"
 }
