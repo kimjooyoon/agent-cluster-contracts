@@ -1,0 +1,26 @@
+{
+  "id": "999-fixture-negative-unknown-ssot-owner",
+  "title": "Fixture unknown ssot owner",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "top_down",
+  "evidence": [
+    {
+      "kind": "file",
+      "ref": "fixtures/negative/decision/decision-invalid-unknown-ssot-owner.json"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "unknown-repo",
+  "generated_artifacts": [],
+  "guards": [],
+  "examples": [
+    "Decision fixture with unknown ssot_owner should fail validation."
+  ],
+  "counterexamples": [],
+  "created_at": "2026-06-03"
+}
