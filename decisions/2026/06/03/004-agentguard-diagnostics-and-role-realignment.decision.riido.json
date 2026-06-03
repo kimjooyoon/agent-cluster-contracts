@@ -1,0 +1,59 @@
+{
+  "id": "004-agentguard-diagnostics-and-role-realignment",
+  "title": "Agentguard role-path alignment + actionable dumb-agent diagnostics (bottom-up from 41-violation CI failure)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "ci",
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "ci-run",
+      "ref": "agent-cluster-contracts dumb-agent-safety run with 41 violations (user-reported 2026-06-03)"
+    },
+    {
+      "kind": "file",
+      "ref": "agent-roles.riido.json"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/agentguard/agentguard.go"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/agentguard/agentguard_test.go"
+    },
+    {
+      "kind": "file",
+      "ref": "tools/agentguard/main.go"
+    },
+    {
+      "kind": "file",
+      "ref": "AGENT_CONTRACT.md"
+    },
+    {
+      "kind": "decision",
+      "ref": "002-dumb-agent-role"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "agentguard show --role dumb-agent prints allowed/forbidden/max_files/auto_merge as the preflight reference; AGENT_CONTRACT.md tells dumb-agents to run it before writing files."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

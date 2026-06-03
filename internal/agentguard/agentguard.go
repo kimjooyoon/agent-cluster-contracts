@@ -3,17 +3,22 @@
 // list of changed paths (from `git diff --name-only`, a GitHub event payload,
 // or a synthetic list for tests).
 //
-// Rule, for each role:
-//   - every changed path must match at least one allowed_paths glob
-//   - no changed path may match any forbidden_paths glob (forbidden wins)
-//   - if pr_isolation.candidate_only is true, none of the changed paths may
-//     match any path declared as forbidden for this role (already enforced)
-//     AND none may fall outside allowed_paths
+// Rules, per role:
+//   - if MaxFilesPerPR > 0 and the diff exceeds it, emit a max_files
+//     violation with a split-PR hint;
+//   - for each path: if it matches any forbidden_paths glob, emit a
+//     forbidden violation (and skip the not-allowed check — forbidden wins);
+//   - else if it does not match any allowed_paths glob, emit a not_allowed
+//     violation, attempt to suggest the closest allowed pattern, and record
+//     any missing path prefix that would have made it match;
+//   - if many not_allowed violations share the same missing prefix, emit a
+//     single prefix_drift hint at the result level.
 package agentguard
 
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/jsonutil"
@@ -63,40 +68,242 @@ func (r *Roles) Lookup(id string) *Role {
 	return nil
 }
 
-// Violation is one rejected path with the reason.
+// ViolationKind classifies a violation.
+type ViolationKind string
+
+const (
+	KindMaxFiles   ViolationKind = "max_files"
+	KindForbidden  ViolationKind = "forbidden"
+	KindNotAllowed ViolationKind = "not_allowed"
+)
+
+// Violation is one rejected path (or one whole-PR violation, with empty Path).
 type Violation struct {
-	Path   string
-	Reason string
+	Path string        `json:"path"`
+	Kind ViolationKind `json:"kind"`
+	// Reason is a human-readable one-liner suitable for direct CI log output.
+	Reason string `json:"reason"`
+	// MatchedPattern: for KindForbidden, the forbidden pattern that matched.
+	MatchedPattern string `json:"matched_pattern,omitempty"`
+	// ClosestAllowed: for KindNotAllowed, the allowed pattern that came nearest
+	// to matching this path (by leading-segment match count). Empty if no
+	// pattern shares any prefix with the path.
+	ClosestAllowed string `json:"closest_allowed,omitempty"`
+	// MissingPrefix: for KindNotAllowed, the leading prefix the path appears to
+	// be missing in order to match ClosestAllowed (e.g. "contracts"). Empty if
+	// no prefix would have helped.
+	MissingPrefix string `json:"missing_prefix,omitempty"`
 }
 
-// Check applies the role's rules to the changed paths.
-// Returns an empty slice when allowed.
-func Check(role *Role, changed []string) []Violation {
-	var out []Violation
+// CheckResult is the full result of Check, including per-path violations and
+// global hints (like prefix_drift) that describe the diff as a whole.
+type CheckResult struct {
+	RoleID     string      `json:"role"`
+	OK         bool        `json:"ok"`
+	Files      []string    `json:"files"`
+	Violations []Violation `json:"violations"`
+	Hints      []string    `json:"hints,omitempty"`
+}
+
+// Check applies the role's rules to the changed paths and returns the result.
+func Check(role *Role, changed []string) CheckResult {
+	res := CheckResult{Files: changed}
 	if role == nil {
-		return []Violation{{Path: "", Reason: "no role provided"}}
+		res.Violations = append(res.Violations, Violation{
+			Kind:   KindMaxFiles, // bucket as max_files-style PR-level error
+			Reason: "no role provided",
+		})
+		return res
 	}
+	res.RoleID = role.ID
+
 	if role.MaxFilesPerPR > 0 && len(changed) > role.MaxFilesPerPR {
-		out = append(out, Violation{
-			Path:   "",
-			Reason: fmt.Sprintf("PR touches %d files, role %q allows at most %d", len(changed), role.ID, role.MaxFilesPerPR),
+		res.Violations = append(res.Violations, Violation{
+			Kind: KindMaxFiles,
+			Reason: fmt.Sprintf(
+				"PR touches %d files, role %q allows at most %d. "+
+					"Hint: split into multiple PRs of ≤ %d files each, grouped by task type "+
+					"(positive fixtures, negative fixtures, fuzz corpus, guard-candidates).",
+				len(changed), role.ID, role.MaxFilesPerPR, role.MaxFilesPerPR,
+			),
 		})
 	}
-	for _, p := range changed {
-		p = filepath.ToSlash(strings.TrimSpace(p))
+
+	for _, raw := range changed {
+		p := filepath.ToSlash(strings.TrimSpace(raw))
 		if p == "" {
 			continue
 		}
-		// Forbidden wins.
-		if forb, hit := matchAny(p, role.ForbiddenPaths); hit {
-			out = append(out, Violation{Path: p, Reason: "matches forbidden_paths pattern " + forb})
+		if pat, hit := matchAny(p, role.ForbiddenPaths); hit {
+			res.Violations = append(res.Violations, Violation{
+				Path:           p,
+				Kind:           KindForbidden,
+				MatchedPattern: pat,
+				Reason:         fmt.Sprintf("FORBIDDEN: matches forbidden_paths pattern %q", pat),
+			})
 			continue
 		}
-		if _, hit := matchAny(p, role.AllowedPaths); !hit {
-			out = append(out, Violation{Path: p, Reason: "does not match any allowed_paths pattern for role " + role.ID})
+		if _, hit := matchAny(p, role.AllowedPaths); hit {
+			continue
+		}
+		closest, missing := closestAllowed(p, role.AllowedPaths)
+		v := Violation{
+			Path:           p,
+			Kind:           KindNotAllowed,
+			ClosestAllowed: closest,
+			MissingPrefix:  missing,
+		}
+		switch {
+		case missing != "":
+			v.Reason = fmt.Sprintf(
+				"not allowed for role %s; would match %q if prefixed with %q",
+				role.ID, closest, missing,
+			)
+		case closest != "":
+			v.Reason = fmt.Sprintf(
+				"not allowed for role %s; closest allowed pattern is %q",
+				role.ID, closest,
+			)
+		default:
+			v.Reason = fmt.Sprintf(
+				"not allowed for role %s; no allowed_paths pattern matches or comes near",
+				role.ID,
+			)
+		}
+		res.Violations = append(res.Violations, v)
+	}
+
+	if drift := detectPrefixDrift(res.Violations); drift != "" {
+		res.Hints = append(res.Hints,
+			fmt.Sprintf(
+				"prefix_drift: %d not_allowed paths would match if prefixed with %q. "+
+					"This usually means agent-roles.riido.json was written with a different "+
+					"path layout than the diff producer (e.g. monorepo vs single-repo CI).",
+				countNotAllowedWithMissing(res.Violations, drift), drift,
+			),
+		)
+	}
+
+	res.OK = len(res.Violations) == 0
+	return res
+}
+
+// detectPrefixDrift returns the most common MissingPrefix across not_allowed
+// violations when it accounts for at least two violations and a majority of
+// not_allowed violations. Returns "" when no drift signal is clear.
+func detectPrefixDrift(vs []Violation) string {
+	counts := map[string]int{}
+	total := 0
+	for _, v := range vs {
+		if v.Kind != KindNotAllowed {
+			continue
+		}
+		total++
+		if v.MissingPrefix != "" {
+			counts[v.MissingPrefix]++
 		}
 	}
-	return out
+	best := ""
+	bestN := 0
+	keys := make([]string, 0, len(counts))
+	for k := range counts {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys) // deterministic tie-break
+	for _, k := range keys {
+		if counts[k] > bestN {
+			best = k
+			bestN = counts[k]
+		}
+	}
+	if bestN < 2 {
+		return ""
+	}
+	if bestN*2 < total {
+		// Less than half — too noisy to call drift.
+		return ""
+	}
+	return best
+}
+
+func countNotAllowedWithMissing(vs []Violation, prefix string) int {
+	n := 0
+	for _, v := range vs {
+		if v.Kind == KindNotAllowed && v.MissingPrefix == prefix {
+			n++
+		}
+	}
+	return n
+}
+
+// closestAllowed scans allowed patterns and returns the pattern whose literal
+// prefix shares the most leading path segments with `path`. If the best match
+// requires skipping some leading segments OF THE PATTERN (i.e. the path lacks
+// a prefix that the pattern has), the dropped segments are returned as
+// missingPrefix.
+//
+// Example:
+//
+//	path     = "fixtures/positive/x.json"
+//	patterns = ["contracts/fixtures/positive/**", "fuzz/corpus/**"]
+//	→ closest="contracts/fixtures/positive/**", missing="contracts"
+func closestAllowed(path string, patterns []string) (closest, missing string) {
+	pathSegs := strings.Split(path, "/")
+	bestScore := 0
+	for _, pat := range patterns {
+		score, miss := segmentDiff(pat, pathSegs)
+		if score > bestScore {
+			bestScore = score
+			closest = pat
+			missing = miss
+		}
+	}
+	if bestScore == 0 {
+		return "", ""
+	}
+	return closest, missing
+}
+
+// segmentDiff returns the number of leading pattern-prefix segments that match
+// some prefix of pathSegs after dropping `skip` leading pattern segments. It
+// picks the best (skip, matched) combination such that matched is maximized
+// and ties go to smaller skip. When skip > 0, the dropped pattern segments are
+// returned as missingPrefix.
+func segmentDiff(pattern string, pathSegs []string) (matched int, missingPrefix string) {
+	patSegs := strings.Split(patternPrefix(pattern), "/")
+	bestMatched := 0
+	bestSkip := -1
+	for skip := 0; skip < len(patSegs); skip++ {
+		m := 0
+		for i := skip; i < len(patSegs); i++ {
+			j := i - skip
+			if j >= len(pathSegs) || patSegs[i] != pathSegs[j] {
+				break
+			}
+			m++
+		}
+		if m > bestMatched {
+			bestMatched = m
+			bestSkip = skip
+		}
+	}
+	if bestMatched == 0 {
+		return 0, ""
+	}
+	if bestSkip > 0 {
+		missingPrefix = strings.Join(patSegs[:bestSkip], "/")
+	}
+	return bestMatched, missingPrefix
+}
+
+// patternPrefix returns the literal leading portion of a glob (everything up
+// to the first wildcard character). Trailing slashes are stripped.
+func patternPrefix(pattern string) string {
+	idx := strings.IndexAny(pattern, "*?")
+	if idx < 0 {
+		return strings.TrimRight(pattern, "/")
+	}
+	return strings.TrimRight(pattern[:idx], "/")
 }
 
 // matchAny returns the first pattern that matches p, and whether any matched.

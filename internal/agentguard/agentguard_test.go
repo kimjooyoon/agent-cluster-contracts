@@ -1,22 +1,26 @@
 package agentguard
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 func TestGlobMatch(t *testing.T) {
 	cases := []struct {
 		pat, name string
 		want      bool
 	}{
-		{"contracts/fixtures/positive/**", "contracts/fixtures/positive/a.json", true},
-		{"contracts/fixtures/positive/**", "contracts/fixtures/positive/sub/a.json", true},
-		{"contracts/fixtures/positive/**", "contracts/fixtures/negative/a.json", false},
-		{"contracts/tools/**", "contracts/tools/decision/main.go", true},
-		{"contracts/tools/**", "backend/main.go", false},
-		{"**/*_test.go", "contracts/internal/agentguard/agentguard_test.go", true},
-		{"**/*_test.go", "contracts/internal/agentguard/agentguard.go", false},
+		{"fixtures/positive/**", "fixtures/positive/a.json", true},
+		{"fixtures/positive/**", "fixtures/positive/sub/a.json", true},
+		{"fixtures/positive/**", "fixtures/negative/a.json", false},
+		{"tools/**", "tools/decision/main.go", true},
+		{"tools/**", "backend/main.go", false},
+		{"**/*_test.go", "internal/agentguard/agentguard_test.go", true},
+		{"**/*_test.go", "internal/agentguard/agentguard.go", false},
 		{".github/workflows/**", ".github/workflows/contracts.yml", true},
-		{"contracts/initial-agreement.md", "contracts/initial-agreement.md", true},
-		{"contracts/initial-agreement.md", "contracts/initial-agreement.md.bak", false},
+		{"ssot-dependency-map.riido.json", "ssot-dependency-map.riido.json", true},
+		{"ssot-dependency-map.riido.json", "ssot-dependency-map.riido.json.bak", false},
 		{"**", "anything/anywhere.txt", true},
 	}
 	for _, c := range cases {
@@ -27,57 +31,219 @@ func TestGlobMatch(t *testing.T) {
 	}
 }
 
-func TestCheckDumbAgentForbidsTools(t *testing.T) {
-	r := &Role{
-		ID:             "dumb-agent",
-		AllowedPaths:   []string{"contracts/fixtures/positive/**", "contracts/fuzz/corpus/**"},
-		ForbiddenPaths: []string{"contracts/tools/**", "contracts/decisions/**", ".github/workflows/**"},
+func TestPatternPrefix(t *testing.T) {
+	cases := map[string]string{
+		"fixtures/positive/**": "fixtures/positive",
+		"tools/**":             "tools",
+		"**/*_test.go":         "",
+		"literal/file.json":    "literal/file.json",
+		"a/*/b":                "a",
 	}
-	vs := Check(r, []string{
-		"contracts/fixtures/positive/wi-001.json",
-		"contracts/tools/decision/main.go",
-	})
-	if len(vs) != 1 {
-		t.Fatalf("expected 1 violation, got %d (%v)", len(vs), vs)
-	}
-	if vs[0].Path != "contracts/tools/decision/main.go" {
-		t.Errorf("wrong path in violation: %v", vs[0])
+	for in, want := range cases {
+		if got := patternPrefix(in); got != want {
+			t.Errorf("patternPrefix(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
-func TestCheckDumbAgentAllowsCandidateOnly(t *testing.T) {
+func TestSegmentDiff(t *testing.T) {
+	cases := []struct {
+		pattern        string
+		path           string
+		wantMatched    int
+		wantMissing    string
+		desc           string
+	}{
+		{
+			pattern: "fixtures/positive/**",
+			path:    "fixtures/positive/x.json",
+			// pattern prefix = ["fixtures","positive"]; matches both segments
+			wantMatched: 2,
+			wantMissing: "",
+			desc:        "exact prefix match",
+		},
+		{
+			pattern: "contracts/fixtures/positive/**",
+			path:    "fixtures/positive/x.json",
+			// pattern prefix = ["contracts","fixtures","positive"];
+			// drop "contracts" → matches 2 segments
+			wantMatched: 2,
+			wantMissing: "contracts",
+			desc:        "missing prefix detected",
+		},
+		{
+			pattern: "tools/**",
+			path:    "fixtures/positive/x.json",
+			// no overlap
+			wantMatched: 0,
+			wantMissing: "",
+			desc:        "no overlap",
+		},
+		{
+			pattern: "a/b/c/d/**",
+			path:    "c/d/x",
+			// drop "a/b" → matches 2 segments
+			wantMatched: 2,
+			wantMissing: "a/b",
+			desc:        "missing multi-segment prefix",
+		},
+	}
+	for _, c := range cases {
+		gotMatched, gotMissing := segmentDiff(c.pattern, strings.Split(c.path, "/"))
+		if gotMatched != c.wantMatched || gotMissing != c.wantMissing {
+			t.Errorf("%s: segmentDiff(%q, %q) = (%d, %q), want (%d, %q)",
+				c.desc, c.pattern, c.path, gotMatched, gotMissing, c.wantMatched, c.wantMissing)
+		}
+	}
+}
+
+func TestCheckForbiddenTakesPrecedence(t *testing.T) {
+	// A path that matches both forbidden and allowed should be reported once
+	// as forbidden, not as allowed and not as not_allowed.
+	r := &Role{
+		ID:             "dumb-agent",
+		AllowedPaths:   []string{"**"},
+		ForbiddenPaths: []string{"tools/**"},
+	}
+	res := Check(r, []string{"tools/decision/main.go"})
+	if res.OK {
+		t.Fatal("expected violations, got ok")
+	}
+	if len(res.Violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(res.Violations), res.Violations)
+	}
+	v := res.Violations[0]
+	if v.Kind != KindForbidden {
+		t.Errorf("kind = %q, want %q", v.Kind, KindForbidden)
+	}
+	if v.MatchedPattern != "tools/**" {
+		t.Errorf("matched_pattern = %q, want tools/**", v.MatchedPattern)
+	}
+	if !strings.Contains(v.Reason, "FORBIDDEN") {
+		t.Errorf("reason missing FORBIDDEN marker: %q", v.Reason)
+	}
+}
+
+func TestCheckNotAllowedSuggestsClosest(t *testing.T) {
+	r := &Role{
+		ID:           "dumb-agent",
+		AllowedPaths: []string{"fixtures/positive/**", "fuzz/corpus/**"},
+	}
+	res := Check(r, []string{"fixtures/negative/x.json"})
+	if len(res.Violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(res.Violations))
+	}
+	v := res.Violations[0]
+	if v.Kind != KindNotAllowed {
+		t.Errorf("kind = %q, want not_allowed", v.Kind)
+	}
+	if v.ClosestAllowed != "fixtures/positive/**" {
+		t.Errorf("closest_allowed = %q, want fixtures/positive/**", v.ClosestAllowed)
+	}
+}
+
+func TestCheckMissingPrefixHint(t *testing.T) {
+	// This is the exact bug-class from the 41-violation incident.
 	r := &Role{
 		ID:           "dumb-agent",
 		AllowedPaths: []string{"contracts/fixtures/positive/**", "contracts/fuzz/corpus/**"},
 	}
-	vs := Check(r, []string{
-		"contracts/fixtures/positive/wi-001.json",
-		"contracts/fuzz/corpus/abc.json",
+	res := Check(r, []string{
+		"fixtures/positive/a.json",
+		"fixtures/positive/b.json",
+		"fuzz/corpus/c.json",
 	})
-	if len(vs) != 0 {
-		t.Fatalf("expected 0 violations, got %d (%v)", len(vs), vs)
+	if len(res.Violations) != 3 {
+		t.Fatalf("expected 3 violations, got %d", len(res.Violations))
+	}
+	for _, v := range res.Violations {
+		if v.MissingPrefix != "contracts" {
+			t.Errorf("%s: missing_prefix = %q, want contracts", v.Path, v.MissingPrefix)
+		}
+	}
+	// Global drift hint should fire when ≥2 violations share the same prefix.
+	if len(res.Hints) == 0 || !strings.Contains(res.Hints[0], "prefix_drift") {
+		t.Errorf("expected prefix_drift hint, got %v", res.Hints)
+	}
+	if !strings.Contains(res.Hints[0], `"contracts"`) {
+		t.Errorf("drift hint missing the prefix string: %v", res.Hints[0])
 	}
 }
 
-func TestCheckDumbAgentRejectsUnmatched(t *testing.T) {
+func TestCheckPrefixDriftQuietForSingleMiss(t *testing.T) {
 	r := &Role{
 		ID:           "dumb-agent",
 		AllowedPaths: []string{"contracts/fixtures/positive/**"},
 	}
-	vs := Check(r, []string{"contracts/random/file.txt"})
-	if len(vs) != 1 {
-		t.Fatalf("expected 1 violation, got %d (%v)", len(vs), vs)
+	res := Check(r, []string{"fixtures/positive/a.json"}) // only one violation
+	for _, h := range res.Hints {
+		if strings.Contains(h, "prefix_drift") {
+			t.Errorf("did not expect prefix_drift hint for a single match: %v", res.Hints)
+		}
 	}
 }
 
-func TestCheckMaxFiles(t *testing.T) {
+func TestCheckMaxFilesIncludesSplitHint(t *testing.T) {
 	r := &Role{
 		ID:            "dumb-agent",
 		AllowedPaths:  []string{"**"},
 		MaxFilesPerPR: 2,
 	}
-	vs := Check(r, []string{"a", "b", "c"})
-	if len(vs) == 0 {
-		t.Fatal("expected at least one violation for exceeding max_files_per_pr")
+	res := Check(r, []string{"a", "b", "c"})
+	if len(res.Violations) == 0 {
+		t.Fatal("expected at least one violation")
+	}
+	v := res.Violations[0]
+	if v.Kind != KindMaxFiles {
+		t.Errorf("first violation kind = %q, want max_files", v.Kind)
+	}
+	if !strings.Contains(v.Reason, "split into multiple PRs") {
+		t.Errorf("max_files reason missing split hint: %q", v.Reason)
+	}
+}
+
+func TestCheckResultJSONShapeIsStable(t *testing.T) {
+	r := &Role{
+		ID:             "dumb-agent",
+		AllowedPaths:   []string{"fixtures/positive/**"},
+		ForbiddenPaths: []string{"tools/**"},
+	}
+	res := Check(r, []string{
+		"fixtures/positive/a.json", // allowed
+		"tools/x.go",               // forbidden
+		"other/y.json",             // not allowed
+	})
+	data, err := json.Marshal(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	for _, want := range []string{
+		`"role":"dumb-agent"`,
+		`"ok":false`,
+		`"kind":"forbidden"`,
+		`"kind":"not_allowed"`,
+		`"matched_pattern":"tools/**"`,
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("JSON missing %q\n--- got ---\n%s", want, s)
+		}
+	}
+}
+
+func TestCheckHappyPath(t *testing.T) {
+	r := &Role{
+		ID:           "dumb-agent",
+		AllowedPaths: []string{"fixtures/positive/**", "fuzz/corpus/**"},
+	}
+	res := Check(r, []string{
+		"fixtures/positive/a.json",
+		"fuzz/corpus/b.json",
+	})
+	if !res.OK {
+		t.Fatalf("expected ok=true, got %+v", res)
+	}
+	if len(res.Violations) != 0 {
+		t.Errorf("expected no violations, got %v", res.Violations)
 	}
 }

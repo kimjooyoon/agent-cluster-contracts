@@ -1,15 +1,14 @@
-// agentguard: enforce per-role allowed/forbidden path rules on a PR diff.
+// agentguard: enforce per-role path allowed/forbidden rules on a PR diff.
 //
 // Usage:
-//   agentguard verify --role ROLE [--files FILE1,FILE2,...] [--from REF] [--to REF]
+//   agentguard verify --role ROLE [--files FILE1,FILE2,...] [--from REF] [--to REF] [--stdin] [--json]
 //   agentguard list
-//   agentguard show ROLE
+//   agentguard show --role ROLE [--json]
 //
-// File list source resolution (in priority order):
+// File-list sources (priority):
 //   1. --files CSV
-//   2. lines from stdin (one path per line) if --stdin
-//   3. `git diff --name-only FROM...TO` when --from is set
-//   4. `git diff --name-only HEAD~1 HEAD` as a default for local use
+//   2. --stdin (one path per line)
+//   3. git diff --name-only FROM...TO  (FROM defaults to HEAD~1 if --from unset)
 //
 // Exit codes:
 //   0 OK
@@ -46,11 +45,7 @@ func main() {
 	case "list":
 		cmdList(root)
 	case "show":
-		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: agentguard show ROLE")
-			os.Exit(2)
-		}
-		cmdShow(root, os.Args[2])
+		cmdShow(root, os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -88,30 +83,86 @@ func cmdVerify(root string, args []string) {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(2)
 	}
-	vs := agentguard.Check(r, files)
+	res := agentguard.Check(r, files)
 	if *asJSON {
-		json.NewEncoder(os.Stdout).Encode(map[string]any{
-			"role":       *role,
-			"ok":         len(vs) == 0,
-			"files":      files,
-			"violations": vs,
-		})
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(res)
 	} else {
-		if len(vs) == 0 {
-			fmt.Printf("agentguard: OK (role=%s, %d file(s) checked)\n", *role, len(files))
-		} else {
-			fmt.Fprintf(os.Stderr, "agentguard: %d violation(s) for role %s:\n", len(vs), *role)
-			for _, v := range vs {
-				if v.Path == "" {
-					fmt.Fprintf(os.Stderr, "  - %s\n", v.Reason)
-				} else {
-					fmt.Fprintf(os.Stderr, "  - %s: %s\n", v.Path, v.Reason)
-				}
-			}
+		printVerifyText(r, res)
+	}
+	if !res.OK {
+		os.Exit(1)
+	}
+}
+
+func printVerifyText(role *agentguard.Role, res agentguard.CheckResult) {
+	if res.OK {
+		fmt.Printf("agentguard: OK (role=%s, %d file(s) checked)\n", res.RoleID, len(res.Files))
+		return
+	}
+
+	// Group violations by kind for readability. Order: max_files, FORBIDDEN, not_allowed.
+	var maxFiles, forbidden, notAllowed []agentguard.Violation
+	for _, v := range res.Violations {
+		switch v.Kind {
+		case agentguard.KindMaxFiles:
+			maxFiles = append(maxFiles, v)
+		case agentguard.KindForbidden:
+			forbidden = append(forbidden, v)
+		case agentguard.KindNotAllowed:
+			notAllowed = append(notAllowed, v)
 		}
 	}
-	if len(vs) > 0 {
-		os.Exit(1)
+
+	fmt.Fprintf(os.Stderr, "agentguard: %d violation(s) for role %s (see agent-roles.riido.json)\n\n", len(res.Violations), res.RoleID)
+
+	if len(maxFiles) > 0 {
+		fmt.Fprintln(os.Stderr, "PR-level:")
+		for _, v := range maxFiles {
+			fmt.Fprintf(os.Stderr, "  - %s\n", v.Reason)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	if len(forbidden) > 0 {
+		fmt.Fprintln(os.Stderr, "FORBIDDEN (must never be touched by this role):")
+		for _, v := range forbidden {
+			fmt.Fprintf(os.Stderr, "  - %s\n", v.Path)
+			fmt.Fprintf(os.Stderr, "      forbidden_paths pattern %q\n", v.MatchedPattern)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	if len(notAllowed) > 0 {
+		fmt.Fprintln(os.Stderr, "not allowed (path falls outside this role's allowed_paths):")
+		for _, v := range notAllowed {
+			fmt.Fprintf(os.Stderr, "  - %s\n", v.Path)
+			switch {
+			case v.MissingPrefix != "":
+				fmt.Fprintf(os.Stderr, "      closest allowed: %q — would match if prefixed with %q\n", v.ClosestAllowed, v.MissingPrefix)
+			case v.ClosestAllowed != "":
+				fmt.Fprintf(os.Stderr, "      closest allowed: %q\n", v.ClosestAllowed)
+			default:
+				fmt.Fprintf(os.Stderr, "      no allowed pattern shares any prefix with this path\n")
+			}
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	if len(res.Hints) > 0 {
+		fmt.Fprintln(os.Stderr, "Hints:")
+		for _, h := range res.Hints {
+			fmt.Fprintf(os.Stderr, "  • %s\n", h)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	fmt.Fprintln(os.Stderr, "Role summary:")
+	fmt.Fprintf(os.Stderr, "  allowed_paths   = %v\n", role.AllowedPaths)
+	fmt.Fprintf(os.Stderr, "  forbidden_paths = %v\n", role.ForbiddenPaths)
+	if role.MaxFilesPerPR > 0 {
+		fmt.Fprintf(os.Stderr, "  max_files_per_pr= %d\n", role.MaxFilesPerPR)
 	}
 }
 
@@ -126,20 +177,64 @@ func cmdList(root string) {
 	}
 }
 
-func cmdShow(root, id string) {
+func cmdShow(root string, args []string) {
+	fs := flag.NewFlagSet("show", flag.ExitOnError)
+	role := fs.String("role", "", "role id (required)")
+	asJSON := fs.Bool("json", false, "JSON output")
+	fs.Parse(args)
+	// Backward-compat: positional ROLE if --role unset.
+	if *role == "" && fs.NArg() == 1 {
+		*role = fs.Arg(0)
+	}
+	if *role == "" {
+		fmt.Fprintln(os.Stderr, "usage: agentguard show --role ROLE [--json]")
+		os.Exit(2)
+	}
 	roles, err := agentguard.Load(root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(2)
 	}
-	r := roles.Lookup(id)
+	r := roles.Lookup(*role)
 	if r == nil {
-		fmt.Fprintln(os.Stderr, "unknown role:", id)
+		fmt.Fprintln(os.Stderr, "unknown role:", *role)
 		os.Exit(2)
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.Encode(r)
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(r)
+		return
+	}
+	fmt.Printf("Role: %s\n", r.ID)
+	fmt.Printf("Label: %s\n", r.Label)
+	if r.Decision != "" {
+		fmt.Printf("Decision: %s\n", r.Decision)
+	}
+	if r.MaxFilesPerPR > 0 {
+		fmt.Printf("Max files per PR: %d\n", r.MaxFilesPerPR)
+	}
+	fmt.Printf("PR isolation: candidate_only=%v guard_only=%v\n", r.PRIsolation.CandidateOnly, r.PRIsolation.GuardOnly)
+	if r.PRIsolation.Rationale != "" {
+		fmt.Printf("  rationale: %s\n", r.PRIsolation.Rationale)
+	}
+	fmt.Println()
+	fmt.Println("Allowed paths:")
+	for _, p := range r.AllowedPaths {
+		fmt.Printf("  - %s\n", p)
+	}
+	fmt.Println()
+	fmt.Println("Forbidden paths:")
+	for _, p := range r.ForbiddenPaths {
+		fmt.Printf("  - %s\n", p)
+	}
+	if r.AutoMergeEligible || len(r.AutoMergePaths) > 0 {
+		fmt.Println()
+		fmt.Printf("Auto-merge: eligible=%v\n", r.AutoMergeEligible)
+		for _, p := range r.AutoMergePaths {
+			fmt.Printf("  - %s\n", p)
+		}
+	}
 }
 
 func resolveFiles(csv string, fromStdin bool, fromRef, toRef string) ([]string, error) {
@@ -188,5 +283,5 @@ func usage() {
 Commands:
   verify --role ROLE [--files A,B | --stdin | --from REF [--to REF]] [--json]
   list
-  show ROLE`)
+  show --role ROLE [--json]`)
 }

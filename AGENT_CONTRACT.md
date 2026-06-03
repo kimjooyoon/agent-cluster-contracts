@@ -26,6 +26,86 @@ To run as a non-designer role, your PR must signal the role explicitly:
 CI looks for either signal. Without one, the PR is treated as `designer` and
 goes through normal review.
 
+## Preflight checks (run these BEFORE you open a PR)
+
+Decision 004 added structured diagnostics so weak agents can self-correct. Run
+these locally before pushing — CI runs the same checks but failing in CI is a
+slower feedback loop than failing on your laptop.
+
+### Step 1 — read your role
+
+```sh
+go build -o bin/ ./tools/agentguard
+./bin/agentguard show --role dumb-agent
+```
+
+Outputs: allowed_paths, forbidden_paths, max_files_per_pr, auto_merge_paths,
+PR-isolation rules, the decision that introduced the role. **If your planned
+PR doesn't fit these rules, do not even start writing files.**
+
+### Step 2 — dry-run your diff before committing
+
+```sh
+git diff --name-only main > /tmp/changed.txt
+./bin/agentguard verify --role dumb-agent --stdin < /tmp/changed.txt
+```
+
+If violations exist, the output groups them as:
+
+- **PR-level** (e.g. `PR touches N files, role allows at most 5`) — comes with a
+  split-PR hint.
+- **FORBIDDEN** — paths matching a forbidden_paths pattern. Re-classify or drop
+  these files; never argue with a forbidden hit. The accompanying pattern is
+  printed so you can find it in `agent-roles.riido.json`.
+- **not allowed** — paths matching no allowed_paths pattern. The closest
+  pattern is suggested. If the suggestion includes `would match if prefixed
+  with "X"`, you are passing paths from the wrong base — fix the path or the
+  pipeline (do not edit `agent-roles.riido.json`).
+
+If multiple `not allowed` paths share the same missing prefix, agentguard
+emits a single `prefix_drift` hint that says role config and diff producer
+disagree on the path base. **This is a guard-author problem, not a dumb-agent
+problem** — write a `reports/guard-candidates/<id>.md` note describing what
+you observed and stop.
+
+### Step 3 — machine-readable mode for downstream tools
+
+```sh
+./bin/agentguard verify --role dumb-agent --stdin --json < /tmp/changed.txt
+```
+
+Output schema (stable):
+
+```json
+{
+  "role": "dumb-agent",
+  "ok": false,
+  "files": ["..."],
+  "violations": [
+    {
+      "path": "tools/x.go",
+      "kind": "forbidden",
+      "reason": "FORBIDDEN: matches forbidden_paths pattern \"tools/**\"",
+      "matched_pattern": "tools/**"
+    },
+    {
+      "path": "other/y.json",
+      "kind": "not_allowed",
+      "reason": "not allowed for role dumb-agent; closest allowed pattern is \"fixtures/positive/**\"",
+      "closest_allowed": "fixtures/positive/**"
+    },
+    {
+      "path": "",
+      "kind": "max_files",
+      "reason": "PR touches 40 files, role \"dumb-agent\" allows at most 5. Hint: ..."
+    }
+  ],
+  "hints": ["prefix_drift: ..."]
+}
+```
+
+Future agents should branch on `kind`, never parse `reason` strings.
+
 ## If you are the dumb-agent role
 
 You are a **low-context closed-loop contract probe**. You are not a designer.
@@ -34,77 +114,78 @@ meaning. You are not allowed to change accepted DSL, accepted IR schema,
 accepted decisions, GitHub Actions, or verifier logic. Your job is to generate
 small contract candidates and let tools decide.
 
-Before every attempt:
-
-1. Read this file (`AGENT_CONTRACT.md`).
-2. Read `initial-agreement.md`.
-3. Read `decisions/schema.riido.json`.
-4. Read `ssot-dependency-map.riido.json`.
-5. Build the verifier binaries: `go build -o bin/ ./tools/...`.
-6. Run the local verifiers and note the baseline output.
+Before every attempt, run the **Preflight** above.
 
 ### Allowed task types
 
-| ID | Name                       | Where to write                            |
-|----|----------------------------|-------------------------------------------|
-| A  | positive fixture candidate | `fixtures/positive/<area>/<id>.json`      |
-| B  | negative fixture candidate | `fixtures/negative/<area>/<id>.json`      |
-| C  | fuzz corpus expansion      | `fuzz/corpus/<area>/<id>.json`            |
-| D  | manifest normalization     | `ir/candidates/<area>/<id>.json` or in-place under fixtures only |
-| E  | failure minimization       | `reports/min/<id>.json` + matching fixture |
+| ID | Name                       | Where to write                                            |
+|----|----------------------------|-----------------------------------------------------------|
+| A  | positive fixture candidate | `fixtures/positive/<area>/<id>.json`                       |
+| B  | negative fixture candidate | `fixtures/negative/<area>/<id>.json`                       |
+| C  | fuzz corpus expansion      | `fuzz/corpus/<area>/<id>.json`                             |
+| D  | manifest normalization     | `ir/candidates/<area>/<id>.json` (or in-place under fixtures/) |
+| E  | failure minimization       | `reports/guard-candidates/<id>-min.md` with the minimized fixture inlined as a fenced JSON block |
 
-### Allowed paths (enforced)
+Task E used to land under `reports/min/`, but Decision 004 narrowed
+dumb-agent's writable space to `reports/guard-candidates/**` only. Embed
+minimized fixtures in the guard-candidate markdown so a designer can promote
+them to a real negative fixture (or to a verifier tightening) in a separate
+guard-author PR.
 
-```
-contracts/fixtures/positive/**
-contracts/fixtures/negative/**
-contracts/fuzz/corpus/**
-contracts/ir/candidates/**
-contracts/reports/**
-```
-
-### Forbidden paths (enforced)
+### Allowed paths (enforced — repo-relative, no `contracts/` prefix)
 
 ```
-contracts/dsl/**
-contracts/ir/schema/**
-contracts/ir/domain/**
-contracts/decisions/**
-contracts/concept-map/**
-contracts/tools/**
-contracts/internal/**
-contracts/initial-agreement.md
-contracts/agent-roles.riido.json
-contracts/AGENT_CONTRACT.md
-contracts/ssot-dependency-map.riido.json
-contracts/go.mod
-contracts/go.sum
+fixtures/positive/**
+fixtures/negative/**
+fuzz/corpus/**
+ir/candidates/**
+reports/guard-candidates/**
+```
+
+### Forbidden paths (enforced — repo-relative)
+
+```
+tools/**
 .github/workflows/**
-backend/**
-frontend/**
+decisions/**
+dsl/core/**
+ir/schema/**
+ssot-dependency-map.riido.json
+concept-map/concept-map.riido.json
+agent-roles.riido.json
 ```
+
+Anything not in allowed_paths and not in forbidden_paths is also rejected
+(treated as not-allowed). When in doubt, write a `reports/guard-candidates/`
+note instead of a file in some other location.
 
 ### Hard rules
 
-- **At most 5 changed files per PR.** Enforced by agentguard.
+- **At most 5 changed files per PR.** Enforced by agentguard. If you have more,
+  split.
 - **No mixing** of candidate-space changes with verifier changes in the same
   PR. Candidate PRs touch only candidate space. If you want to change a
   verifier, that is a different role (`guard-author`) and a different PR.
 - **Never** modify a generated artifact by hand.
 - **Never** delete tests, weaken validators, edit workflows, or modify
   accepted decisions.
-- **Never** invent domain vocabulary. If a new word seems needed, write a
+- **Never** invent domain vocabulary. If a new word seems needed, create a
   guard-candidate note under `reports/guard-candidates/` instead.
 
 ### How to think about failure
 
 - Your candidate failed verifier? → Don't "fix" the verifier. Minimize the
-  failing case and submit it as a negative fixture (or as a `reports/min/...`
-  entry) so a designer can decide whether the verifier or the candidate is
-  wrong.
+  failing case and submit it as a `reports/guard-candidates/<id>-min.md` so a
+  designer can decide whether the verifier or the candidate is wrong.
 - The verifier accepted something that "looks weird"? → Don't change the
   verifier. Write a `reports/guard-candidates/<id>.md` describing the
   unexpected acceptance. A designer will decide whether to tighten.
+- agentguard rejected a path you expected to be allowed? → Run
+  `agentguard show --role dumb-agent` and compare. If the role config
+  really doesn't allow it, your candidate is in the wrong place — move it
+  or drop it. If the role config seems wrong, write a
+  `reports/guard-candidates/<id>.md` describing the discrepancy and stop.
+  **Never edit `agent-roles.riido.json` yourself.**
 
 ### Required PR template (mental)
 
