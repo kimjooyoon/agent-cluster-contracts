@@ -18,6 +18,7 @@ package agentguard
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -66,6 +67,71 @@ func (r *Roles) Lookup(id string) *Role {
 		}
 	}
 	return nil
+}
+
+var (
+	semverRe = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+	roleIDRe = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	decIDRe  = regexp.MustCompile(`^[0-9]{3}-[a-z0-9][a-z0-9-]*$`)
+)
+
+// ValidateRoles mirrors agent-roles.schema.json in Go. Returns one error per
+// rule violation. An empty return value means the SSOT artifact is shaped
+// correctly. Decision 009 introduced this — previously the only check was
+// "JSON parses into Go struct, extras ignored", which silently accepted typos.
+func ValidateRoles(r *Roles) []error {
+	if r == nil {
+		return []error{fmt.Errorf("roles: nil")}
+	}
+	var errs []error
+	if !semverRe.MatchString(r.Version) {
+		errs = append(errs, fmt.Errorf("version %q: must match X.Y.Z", r.Version))
+	}
+	if r.Owner != "agent-cluster-contracts" {
+		errs = append(errs, fmt.Errorf("owner %q: must be agent-cluster-contracts", r.Owner))
+	}
+	if len(r.Roles) == 0 {
+		errs = append(errs, fmt.Errorf("roles: at least one role required"))
+	}
+	seenIDs := map[string]bool{}
+	for i, role := range r.Roles {
+		if !roleIDRe.MatchString(role.ID) {
+			errs = append(errs, fmt.Errorf("roles[%d].id %q: must match ^[a-z][a-z0-9-]*$", i, role.ID))
+		}
+		if seenIDs[role.ID] {
+			errs = append(errs, fmt.Errorf("roles[%d].id %q: duplicate", i, role.ID))
+		}
+		seenIDs[role.ID] = true
+		if role.Label == "" {
+			errs = append(errs, fmt.Errorf("roles[%d] (%s): label required", i, role.ID))
+		}
+		if role.Description == "" {
+			errs = append(errs, fmt.Errorf("roles[%d] (%s): description required", i, role.ID))
+		}
+		if role.Decision != "" && !decIDRe.MatchString(role.Decision) {
+			errs = append(errs, fmt.Errorf("roles[%d] (%s).decision %q: must match NNN-slug", i, role.ID, role.Decision))
+		}
+		if role.AllowedPaths == nil {
+			errs = append(errs, fmt.Errorf("roles[%d] (%s): allowed_paths required (use empty array, never null)", i, role.ID))
+		}
+		for j, p := range role.AllowedPaths {
+			if strings.TrimSpace(p) == "" {
+				errs = append(errs, fmt.Errorf("roles[%d] (%s).allowed_paths[%d]: empty string", i, role.ID, j))
+			}
+		}
+		if role.ForbiddenPaths == nil {
+			errs = append(errs, fmt.Errorf("roles[%d] (%s): forbidden_paths required (use empty array, never null)", i, role.ID))
+		}
+		for j, p := range role.ForbiddenPaths {
+			if strings.TrimSpace(p) == "" {
+				errs = append(errs, fmt.Errorf("roles[%d] (%s).forbidden_paths[%d]: empty string", i, role.ID, j))
+			}
+		}
+		if role.MaxFilesPerPR < 0 {
+			errs = append(errs, fmt.Errorf("roles[%d] (%s): max_files_per_pr must be ≥ 0", i, role.ID))
+		}
+	}
+	return errs
 }
 
 // ViolationKind classifies a violation.

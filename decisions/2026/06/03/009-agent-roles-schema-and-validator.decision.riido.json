@@ -1,0 +1,46 @@
+{
+  "id": "009-agent-roles-schema-and-validator",
+  "title": "agent-roles SSOT gets a schema + code-mirrored validator (backlog item 6)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance",
+      "tooling"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "008-wirelint-cross-cutting-wire-name-enforcement"
+    },
+    {
+      "kind": "file",
+      "ref": "agent-roles.riido.json"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/agentguard/agentguard.go"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal continuing ssot improvement"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Pattern: every SSOT artifact gets a schema and a code-mirrored validator. agent-roles was the last one without; ssot-dependency-map.riido.json remains without (future backlog item) since its shape is mostly free-form documentation today."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

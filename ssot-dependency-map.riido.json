@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -92,8 +92,15 @@
       "id": "agent-roles",
       "kind": "agent-roles",
       "path": "agent-roles.riido.json",
-      "schema": null,
+      "schema": "agent-roles.schema.json",
       "mirrored_in": ["AGENT_CONTRACT.md"],
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "agent-roles-schema",
+      "kind": "schema",
+      "path": "agent-roles.schema.json",
+      "schema": null,
       "owned_by": "agent-cluster-contracts"
     },
     {
@@ -331,7 +338,8 @@
         "dsl-list-work-items",
         "ir-list-work-items",
         "ir-schema",
-        "wirelint-tool"
+        "wirelint-tool",
+        "agent-roles-schema"
       ]
     },
     {

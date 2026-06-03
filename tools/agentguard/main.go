@@ -42,6 +42,8 @@ func main() {
 	switch os.Args[1] {
 	case "verify":
 		cmdVerify(root, os.Args[2:])
+	case "validate":
+		cmdValidate(root, os.Args[2:])
 	case "list":
 		cmdList(root)
 	case "show":
@@ -166,6 +168,39 @@ func printVerifyText(role *agentguard.Role, res agentguard.CheckResult) {
 	}
 }
 
+func cmdValidate(root string, args []string) {
+	fs := flag.NewFlagSet("validate", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "JSON output")
+	fs.Parse(args)
+	roles, err := agentguard.Load(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(2)
+	}
+	errs := agentguard.ValidateRoles(roles)
+	if *asJSON {
+		msgs := make([]string, len(errs))
+		for i, e := range errs {
+			msgs[i] = e.Error()
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(map[string]any{"ok": len(errs) == 0, "errors": msgs})
+	} else {
+		if len(errs) == 0 {
+			fmt.Printf("agentguard validate: OK (%d role(s))\n", len(roles.Roles))
+		} else {
+			fmt.Fprintf(os.Stderr, "agentguard validate: %d error(s)\n", len(errs))
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, "  -", e)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		os.Exit(1)
+	}
+}
+
 func cmdList(root string) {
 	roles, err := agentguard.Load(root)
 	if err != nil {
@@ -281,7 +316,10 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `agentguard — enforce per-role path allowlists on PR diffs
 
 Commands:
-  verify --role ROLE [--files A,B | --stdin | --from REF [--to REF]] [--json]
+  verify   --role ROLE [--files A,B | --stdin | --from REF [--to REF]] [--json]
+  validate [--json]
+                  Check agent-roles.riido.json against agent-roles.schema.json
+                  (mirrored by ValidateRoles). Exit 1 on schema violations.
   list
-  show --role ROLE [--json]`)
+  show     --role ROLE [--json]`)
 }

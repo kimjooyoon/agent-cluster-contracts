@@ -135,6 +135,11 @@ to confirm the diff complies.** See `AGENT_CONTRACT.md`.
 Diagnostics group by kind: `max_files`, `forbidden`, `not_allowed`. JSON
 schema is stable; future tooling may parse it.
 
+`agentguard validate` (decision 009) checks `agent-roles.riido.json`
+against `agent-roles.schema.json` — mirrored by `internal/agentguard.ValidateRoles`.
+Runs as part of `probe preflight` (check name `agent-roles-validate`) and
+as a dedicated step in `contracts.yml`.
+
 ## probe
 
 Dumb-agent baseline + fixture verifier (introduced by decision 005).
