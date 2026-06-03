@@ -1,0 +1,26 @@
+{
+  "id": "999-fixture-negative-invalid-scope-area",
+  "title": "Fixture invalid scope area",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["invalid-area"]
+  },
+  "source": "top_down",
+  "evidence": [
+    {
+      "kind": "file",
+      "ref": "fixtures/negative/decision/decision-invalid-scope-area.json"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": [],
+  "guards": [],
+  "examples": [
+    "Decision fixture with invalid scope area should fail validation."
+  ],
+  "counterexamples": [],
+  "created_at": "2026-06-03"
+}
