@@ -24,7 +24,7 @@ import (
 
 func main() {
 	defaultIR := ""
-	if root, err := findroot.FromCWD(); err == nil {
+	if root, err := findroot.FromCWDOrEnv(); err == nil {
 		defaultIR = filepath.Join(root, "ir", "domain")
 	}
 	irDir := flag.String("ir-dir", defaultIR, "directory containing *.ir.json files")
