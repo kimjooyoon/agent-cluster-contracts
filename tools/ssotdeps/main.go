@@ -152,11 +152,14 @@ func cmdCrossCheck(args []string) {
 	if rolesErr == nil {
 		errs = append(errs, ssotdeps.VerifyAgentContractMirror(roles, root+"/AGENT_CONTRACT.md")...)
 	}
+	// D035: tools/README.md coverage. Every verifier/code-generator
+	// ssot_artifact must have a section + path mention in tools/README.md.
+	errs = append(errs, ssotdeps.VerifyToolsReadmeCoverage(m, root+"/tools/README.md")...)
 	if *asJSON {
 		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": len(errs) == 0, "errors": errMsgs(errs)})
 	} else {
 		if len(errs) == 0 {
-			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths; all ./bin/<tool> workflow references registered as ssot_artifacts; AGENT_CONTRACT.md mirror of agent-roles dumb-agent paths in sync)\n", len(m.Pending), pairsChecked)
+			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths; all ./bin/<tool> workflow references registered as ssot_artifacts; AGENT_CONTRACT.md mirror of agent-roles dumb-agent paths in sync; all verifier/code-generator tools documented in tools/README.md)\n", len(m.Pending), pairsChecked)
 		} else {
 			fmt.Fprintf(os.Stderr, "ssotdeps cross-check: %d violation(s)\n", len(errs))
 			for _, e := range errs {

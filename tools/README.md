@@ -21,6 +21,7 @@ go build -o bin/ ./tools/...
 | [gen-dart-client](#gen-dart-client) | (default)                            | **no**                                              | yes |
 | [wirelint](#wirelint)        | (default)                                  | yes (read-only)                                     | n/a |
 | [vocablint](#vocablint)      | (default)                                  | yes (read-only)                                     | n/a |
+| [docfresh](#docfresh)        | check                                       | yes (read-only)                                     | n/a |
 
 Tools marked **dumb-agent may run** can be executed from a dumb-agent's
 preflight/postflight scripts. Tools that write to `agent-roles.riido.json`,
@@ -275,6 +276,25 @@ suppress matches (used in tests and intentional aliases).
 
 ---
 
+## docfresh
+
+Executable enforcement of constraint **C-013** (decisions touching
+dumb-agent-visible rules must update AGENT_CONTRACT.md in the same PR).
+Introduced by decision 025.
+
+```sh
+./bin/docfresh check [--base REF] [--head REF] [--stdin] [--json]
+```
+
+Diffs the PR (or stdin file list) and inspects every added decision.
+If any `guards[].ref` matches the dumb-agent-visible rule regex
+(substrings `internal/probe`, `internal/agentguard`, `purpose-banlist`,
+`agent-roles`), `AGENT_CONTRACT.md` must also be in the diff. Runs in
+`contracts.yml` on `pull_request` events only — push-to-main diffs
+are trivially empty.
+
+---
+
 ## Where each tool's source lives
 
 | Tool | Source |
@@ -292,3 +312,4 @@ suppress matches (used in tests and intentional aliases).
 | gen-dart-client | `tools/gen-dart-client/main.go` + `internal/codegen/` |
 | wirelint        | `tools/wirelint/main.go`        + `internal/wirelint/` |
 | vocablint       | `tools/vocablint/main.go`       + `internal/vocablint/` |
+| docfresh        | `tools/docfresh/main.go`        + `internal/docfresh/` |
