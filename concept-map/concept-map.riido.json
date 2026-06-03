@@ -1,5 +1,5 @@
 {
-  "version": "0.13.0",
+  "version": "0.14.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -348,6 +348,23 @@
       ],
       "guard_candidate": { "tool": "internal/probe.noiseMarkerReason (D023): scans meta.purpose for cycle-N regex and decision fixture data for 999- id prefix; rejects before banlist+dedup so noise dies on first occurrence", "status": "implemented" },
       "decision": "023-fixture-noise-markers"
+    },
+    {
+      "id": "C-013",
+      "rule": "A pull request that ADDS a decision record whose guards[].ref points at a dumb-agent-visible rule surface (internal/probe, internal/agentguard, purpose-banlist, agent-roles) MUST also touch AGENT_CONTRACT.md in the same diff. A one-line acknowledgement suffices; the point is that the doc the dumb-agent reads first is never more than one decision behind the executable rules it must obey.",
+      "rationale": "Two of the first 24 decisions (D021, D024) were pure SSOT-mirror catch-ups for AGENT_CONTRACT.md after substantive rules had landed in code without a parallel doc update. The catch-up cost is one decision per round-trip; codifying the rule turns the round-trip into 0. A regex over guards[].ref (rather than an opt-in flag) avoids the failure mode where the author forgets to mark the decision as doc-impacting.",
+      "examples": [
+        "D023 added internal/probe.noiseMarkerReason → guards[].ref contains 'internal/probe' → docfresh requires AGENT_CONTRACT.md touch. If absent, contracts CI fails before merge.",
+        "D018 added purpose-banlist.riido.json → guards[].ref contains 'purpose-banlist' → AGENT_CONTRACT.md required.",
+        "D022 added tools/ssotdeps cross-check → guards[].ref contains 'tools/ssotdeps' (NOT in the agent-visible list because dumb-agent doesn't read dep map) → no AGENT_CONTRACT.md update required.",
+        "Future agent-visible surfaces (e.g. a new SSOT the dumb-agent must check at preflight) require extending docfresh's agentVisibleGuardRe via a superseding decision."
+      ],
+      "counterexamples": [
+        "A decision that lists no guards (a pure documentation / process decision like D021 itself) is unaffected.",
+        "A decision whose only guards reference contracts-CI tools (ssotdeps, conceptmap, irdrift) is unaffected — those rules apply to designer-author PRs, not to what dumb-agent reads."
+      ],
+      "guard_candidate": { "tool": "internal/docfresh.Check + tools/docfresh check (D025): runs in contracts.yml on PR events; diffs against the PR base ref and rejects when any added decision's guards reference a dumb-agent-visible rule but AGENT_CONTRACT.md is not in the diff", "status": "implemented" },
+      "decision": "025-doc-freshness-guard"
     }
   ]
 }

@@ -1,0 +1,61 @@
+{
+  "id": "025-doc-freshness-guard",
+  "title": "docfresh — AGENT_CONTRACT.md catches up automatically when a decision touches dumb-agent-visible rules",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "D021 (688eda6) and D024 (fdf029c) are both pure AGENT_CONTRACT.md catch-up decisions absorbing D015..D020 and D022..D023 respectively — 2 of 24 decisions are SSOT-mirror cleanup with no executable change; one full round-trip per occurrence"
+    },
+    {
+      "kind": "decision",
+      "ref": "021-agent-contract-doc-current-with-fixture-rules — first occurrence of the recurring catch-up pattern"
+    },
+    {
+      "kind": "decision",
+      "ref": "024-agent-contract-d022-d023 — second occurrence; confirmed the pattern is recurring, not one-off"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "tools/docfresh check — diffs PR against base, loads each added decision record, requires AGENT_CONTRACT.md in the diff when any guards[].ref matches the dumb-agent-visible rule regex",
+      "status": "implemented"
+    },
+    {
+      "kind": "github-action",
+      "ref": ".github/workflows/contracts.yml — 'docfresh — AGENT_CONTRACT.md must catch up' step, runs on pull_request events only",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/docfresh/docfresh_test.go TestIsAgentVisible (8 cases incl. docfresh self-reference) + TestCheckPasses + TestCheckFlagsMissingDocUpdate + TestCheckIgnoresNonAgentVisibleDecisions + TestCheckMultipleViolations + TestIsDecisionPath",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-013 — codifies the rule and the dumb-agent-visible rule surface",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "D023 added internal/probe.noiseMarkerReason; D024 had to ship later as a pure catch-up. After D025: D023's analogue would fail docfresh until AGENT_CONTRACT.md is in the same PR (a 1-line note suffices), eliminating the second-round-trip cost.",
+    "D025's own guards reference internal/docfresh and tools/docfresh — neither matches the agent-visible regex, so D025 is not subject to its own rule. A one-line note was added to AGENT_CONTRACT.md voluntarily so future authors know docfresh exists.",
+    "D022 added tools/ssotdeps cross-check; guards[].ref contains 'tools/ssotdeps' (NOT in agent-visible list because dumb-agent doesn't read dep map) — docfresh does NOT require AGENT_CONTRACT.md update for D022-class decisions."
+  ],
+  "counterexamples": [
+    "Adding a guard with kind=go-tool but ref pointing only at contracts-CI tooling (ssotdeps, conceptmap, irdrift) does not trigger the rule — those rules don't affect what dumb-agent reads.",
+    "Editing AGENT_CONTRACT.md without adding a decision is unaffected — docfresh only fires when an added decision lacks a doc touch, not the reverse.",
+    "Future agent-visible surfaces must be added to internal/docfresh.agentVisibleGuardRe via a superseding decision; silent regex edits are caught by agentguard (designer-only file)."
+  ],
+  "created_at": "2026-06-03"
+}

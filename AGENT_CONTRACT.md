@@ -66,6 +66,14 @@ returns one of:
 > `ssot-dependency-map.riido.json` and want to be sure, run
 > `./bin/ssotdeps cross-check`.
 
+> Note: contracts CI also runs `docfresh check` (D025) on PR events.
+> If your PR adds a decision record whose `guards[].ref` points at a
+> dumb-agent-visible rule (anything under `internal/probe`,
+> `internal/agentguard`, `purpose-banlist`, or `agent-roles`), the
+> diff must also touch this file (`AGENT_CONTRACT.md`). A one-line
+> acknowledgement is enough — the goal is just to make sure the doc
+> never lags behind the executable rules dumb-agent reads first.
+
 
 - `"status": "candidate_allowed"` → baseline is green. You may create
   **exactly one small candidate** (≤ 5 files; see role config). Proceed to
