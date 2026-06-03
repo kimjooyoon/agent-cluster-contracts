@@ -7,6 +7,11 @@
       "normalized": "ensure a unique accepted decision fixture validates successfully",
       "seeded_by_decision": "018-fixture-purpose-banlist",
       "reason": "Template used by dumb-agent cycle-N fixtures (cycle-31..cycle-37). Each cycle re-filed this purpose with a different timestamp suffix; the deleted fixtures no longer dedup against the new ones. Banning the normalized template forces a genuinely novel purpose."
+    },
+    {
+      "normalized": "validate a unique accepted decision record in platform governance scope",
+      "seeded_by_decision": "020-extend-purpose-banlist-cycle-39",
+      "reason": "Wording-variation adaptation observed after D018 banned the cycle-31..37 template. cycle-39 used this rephrased template; fixture content was byte-identical to decision-valid-minimal modulo id/title/self-reference. Same noise pattern, new wording."
     }
   ]
 }
