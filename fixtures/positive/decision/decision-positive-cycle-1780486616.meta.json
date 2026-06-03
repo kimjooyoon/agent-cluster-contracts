@@ -4,5 +4,5 @@
   "expected": "pass",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "Ensure a unique accepted decision fixture validates successfully (1780486616)"
+  "purpose": "Validate an accepted decision fixture with platform governance scope and top-down source"
 }
