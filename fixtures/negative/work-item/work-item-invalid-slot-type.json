@@ -1,0 +1,25 @@
+{
+  "kind": "aggregate",
+  "name": "work-item",
+  "slots": [
+    {
+      "name": "id",
+      "required": true,
+      "type": 123
+    },
+    {
+      "name": "title",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "name": "state",
+      "required": true,
+      "type": "string"
+    }
+  ],
+  "source": {
+    "dsl_file": "dsl/domain/work-item.lisp",
+    "sha256": "85dcf3f8f3be..."
+  }
+}
