@@ -1,0 +1,7 @@
+{
+  "fixture_type": "decision",
+  "verifier": "decision validate",
+  "expected": "fail",
+  "from_role": "dumb-agent",
+  "supersedes": null
+}
