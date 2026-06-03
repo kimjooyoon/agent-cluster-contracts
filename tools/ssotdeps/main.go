@@ -146,11 +146,17 @@ func cmdCrossCheck(args []string) {
 	// .github/workflows/*.yml file must be registered as an ssot_artifact.
 	workflowsDir := root + "/.github/workflows"
 	errs = append(errs, ssotdeps.VerifyWorkflowToolCoverage(m, workflowsDir)...)
+	// D034: AGENT_CONTRACT.md mirror. Allowed/Forbidden paths code blocks
+	// must match agent-roles dumb-agent role exactly. Skip if roles
+	// failed to load (D022/D032 already report that).
+	if rolesErr == nil {
+		errs = append(errs, ssotdeps.VerifyAgentContractMirror(roles, root+"/AGENT_CONTRACT.md")...)
+	}
 	if *asJSON {
 		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": len(errs) == 0, "errors": errMsgs(errs)})
 	} else {
 		if len(errs) == 0 {
-			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths; all ./bin/<tool> workflow references registered as ssot_artifacts)\n", len(m.Pending), pairsChecked)
+			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths; all ./bin/<tool> workflow references registered as ssot_artifacts; AGENT_CONTRACT.md mirror of agent-roles dumb-agent paths in sync)\n", len(m.Pending), pairsChecked)
 		} else {
 			fmt.Fprintf(os.Stderr, "ssotdeps cross-check: %d violation(s)\n", len(errs))
 			for _, e := range errs {

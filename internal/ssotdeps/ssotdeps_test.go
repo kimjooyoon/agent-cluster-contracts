@@ -252,6 +252,124 @@ func TestVerifyForbiddenSymmetryNilTolerant(t *testing.T) {
 	}
 }
 
+// D034 — VerifyAgentContractMirror: AGENT_CONTRACT.md Allowed/Forbidden
+// paths code blocks must match agent-roles dumb-agent role exactly.
+
+func writeAgentContract(t *testing.T, dir string, allowed, forbidden []string) string {
+	t.Helper()
+	body := "# Agent Contract\n\n## stuff\n\n### Allowed paths (enforced — repo-relative)\n\n```\n" +
+		strings.Join(allowed, "\n") + "\n```\n\nMore prose.\n\n### Forbidden paths (enforced — repo-relative)\n\n```\n" +
+		strings.Join(forbidden, "\n") + "\n```\n"
+	p := filepath.Join(dir, "AGENT_CONTRACT.md")
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func dumbRole(allowed, forbidden []string) *agentguard.Roles {
+	return &agentguard.Roles{Roles: []agentguard.Role{
+		{ID: "dumb-agent", AllowedPaths: allowed, ForbiddenPaths: forbidden},
+	}}
+}
+
+func TestVerifyAgentContractMirrorAllMatch(t *testing.T) {
+	dir := t.TempDir()
+	allowed := []string{"fixtures/positive/**", "reports/guard-candidates/**"}
+	forbidden := []string{"tools/**", "decisions/**"}
+	p := writeAgentContract(t, dir, allowed, forbidden)
+	if errs := VerifyAgentContractMirror(dumbRole(allowed, forbidden), p); len(errs) != 0 {
+		t.Errorf("expected 0 errors, got %v", errs)
+	}
+}
+
+func TestVerifyAgentContractMirrorFlagsMDMissingEntry(t *testing.T) {
+	// JSON has a path that MD lacks.
+	dir := t.TempDir()
+	p := writeAgentContract(t, dir,
+		[]string{"fixtures/positive/**"},
+		[]string{"tools/**", "decisions/**"},
+	)
+	roles := dumbRole(
+		[]string{"fixtures/positive/**"},
+		[]string{"tools/**", "decisions/**", "ir/domain/**"}, // ir/domain/** missing from MD
+	)
+	errs := VerifyAgentContractMirror(roles, p)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "ir/domain") || !strings.Contains(errs[0].Error(), "missing from the AGENT_CONTRACT.md") {
+		t.Errorf("violation should cite missing-from-md ir/domain, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyAgentContractMirrorFlagsJSONMissingEntry(t *testing.T) {
+	// MD has a path that JSON lacks.
+	dir := t.TempDir()
+	p := writeAgentContract(t, dir,
+		[]string{"fixtures/positive/**"},
+		[]string{"tools/**", "decisions/**", "stray-extra-rule.json"},
+	)
+	roles := dumbRole(
+		[]string{"fixtures/positive/**"},
+		[]string{"tools/**", "decisions/**"},
+	)
+	errs := VerifyAgentContractMirror(roles, p)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "stray-extra-rule.json") || !strings.Contains(errs[0].Error(), "missing from dumb-agent.forbidden_paths") {
+		t.Errorf("violation should cite missing-from-json, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyAgentContractMirrorBothListsChecked(t *testing.T) {
+	// Drift in allowed AND drift in forbidden → 2 violations (one each).
+	dir := t.TempDir()
+	p := writeAgentContract(t, dir,
+		[]string{"fixtures/positive/**"},
+		[]string{"tools/**"},
+	)
+	roles := dumbRole(
+		[]string{"fixtures/positive/**", "fuzz/corpus/**"},
+		[]string{"tools/**", "decisions/**"},
+	)
+	errs := VerifyAgentContractMirror(roles, p)
+	if len(errs) != 2 {
+		t.Errorf("expected 2 violations (one per list), got %d: %v", len(errs), errs)
+	}
+}
+
+func TestVerifyAgentContractMirrorOrderingIndependent(t *testing.T) {
+	dir := t.TempDir()
+	// MD lists in different order than JSON — should still match as sets.
+	p := writeAgentContract(t, dir,
+		[]string{"b/**", "a/**"},
+		[]string{"y/**", "x/**"},
+	)
+	roles := dumbRole(
+		[]string{"a/**", "b/**"},
+		[]string{"x/**", "y/**"},
+	)
+	if errs := VerifyAgentContractMirror(roles, p); len(errs) != 0 {
+		t.Errorf("ordering shouldn't matter, got %v", errs)
+	}
+}
+
+func TestVerifyAgentContractMirrorMissingFileSurfacesAsError(t *testing.T) {
+	roles := dumbRole(nil, nil)
+	errs := VerifyAgentContractMirror(roles, "/nonexistent/AGENT_CONTRACT.md")
+	if len(errs) == 0 {
+		t.Errorf("expected error for missing AGENT_CONTRACT.md")
+	}
+}
+
+func TestVerifyAgentContractMirrorNilRolesIsNoOp(t *testing.T) {
+	if errs := VerifyAgentContractMirror(nil, "/nonexistent"); len(errs) != 0 {
+		t.Errorf("nil roles should produce no errors, got %v", errs)
+	}
+}
+
 // D033 — VerifyWorkflowToolCoverage: every ./bin/<name> reference in
 // .github/workflows/*.yml must be registered as an ssot_artifact.
 

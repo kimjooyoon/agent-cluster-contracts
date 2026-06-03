@@ -365,6 +365,14 @@ convention is **executable**: `ssotdeps cross-check` (D032) walks every
 covered by these globs and the other is not. Adding a new SSOT artifact
 without registering both halves fails CI before merge.
 
+The two code blocks above (`### Allowed paths` and `### Forbidden paths`)
+are also mirror-checked against `agent-roles.riido.json` dumb-agent
+role's `allowed_paths` and `forbidden_paths` (D034, C-018). If a
+designer edits the JSON without updating this markdown — or vice versa
+— `ssotdeps cross-check` reports the drift as `AGENT_CONTRACT.md mirror
+drift (D034): <path> is in <one side> but missing from <the other>`.
+Reordering is fine; the comparison is set-based.
+
 Anything not in allowed_paths and not in forbidden_paths is also rejected
 (treated as not-allowed). When in doubt, write a `reports/guard-candidates/`
 note instead of a file in some other location.

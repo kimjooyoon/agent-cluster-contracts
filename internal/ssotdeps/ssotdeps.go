@@ -331,6 +331,94 @@ func CrossCheck(m *Map, cm *conceptmap.Map) []error {
 
 var cidRefRe = regexp.MustCompile(`C-[0-9]{3}`)
 
+// VerifyAgentContractMirror enforces that AGENT_CONTRACT.md's "Allowed
+// paths" and "Forbidden paths" code blocks for the dumb-agent role
+// match agent-roles.riido.json's dumb-agent.allowed_paths and
+// .forbidden_paths exactly (as sets — order doesn't matter, duplicates
+// are not allowed).
+//
+// Decision 034 introduced this. ssot-dependency-map.riido.json declares
+// `agent-roles` with `mirrored_in: ["AGENT_CONTRACT.md"]` — D034 makes
+// that mirror claim verifiable. Drift between the JSON SSOT and the
+// human-readable mirror is the failure mode D021 and D024 had to ship
+// catch-up decisions for; D025 docfresh catches the case where a PR
+// adds a rule without doc update, but doesn't catch the case where
+// the doc was edited and the JSON wasn't (or vice versa). D034 closes
+// that gap for the specific path lists.
+//
+// agentContractPath is the absolute path to AGENT_CONTRACT.md.
+// Returns one error per difference; empty slice means OK.
+func VerifyAgentContractMirror(roles *agentguard.Roles, agentContractPath string) []error {
+	if roles == nil {
+		return nil
+	}
+	var dumb *agentguard.Role
+	for i, r := range roles.Roles {
+		if r.ID == "dumb-agent" {
+			dumb = &roles.Roles[i]
+			break
+		}
+	}
+	if dumb == nil {
+		return nil // VerifyForbiddenSymmetry will surface this
+	}
+	md, err := os.ReadFile(agentContractPath)
+	if err != nil {
+		return []error{fmt.Errorf("AGENT_CONTRACT.md not readable at %s: %w", agentContractPath, err)}
+	}
+	allowedMD := extractAgentContractBlock(string(md), "Allowed paths")
+	forbiddenMD := extractAgentContractBlock(string(md), "Forbidden paths")
+
+	var errs []error
+	errs = append(errs, diffSet("allowed_paths", "dumb-agent.allowed_paths", dumb.AllowedPaths, allowedMD)...)
+	errs = append(errs, diffSet("forbidden_paths", "dumb-agent.forbidden_paths", dumb.ForbiddenPaths, forbiddenMD)...)
+	return errs
+}
+
+// extractAgentContractBlock returns the lines of the first fenced
+// code block (```...```) that follows a "### <heading>" line in md.
+// Returns nil if no such block is found.
+func extractAgentContractBlock(md, heading string) []string {
+	pat := regexp.MustCompile(`### ` + regexp.QuoteMeta(heading) + `[^\n]*\n+` + "```" + `\n([\s\S]*?)\n` + "```")
+	m := pat.FindStringSubmatch(md)
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, line := range strings.Split(m[1], "\n") {
+		t := strings.TrimSpace(line)
+		if t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// diffSet compares two lists as sets, returning one error per
+// element that's in one list but not the other.
+func diffSet(label, source string, fromJSON, fromMD []string) []error {
+	jset := map[string]bool{}
+	for _, s := range fromJSON {
+		jset[s] = true
+	}
+	mset := map[string]bool{}
+	for _, s := range fromMD {
+		mset[s] = true
+	}
+	var errs []error
+	for s := range jset {
+		if !mset[s] {
+			errs = append(errs, fmt.Errorf("AGENT_CONTRACT.md mirror drift (D034): %q is in %s but missing from the AGENT_CONTRACT.md `### %s` code block. Add it to the markdown or remove it from the JSON", s, source, label))
+		}
+	}
+	for s := range mset {
+		if !jset[s] {
+			errs = append(errs, fmt.Errorf("AGENT_CONTRACT.md mirror drift (D034): %q is in the AGENT_CONTRACT.md `### %s` code block but missing from %s. Add it to the JSON or remove it from the markdown", s, label, source))
+		}
+	}
+	return errs
+}
+
 // VerifyWorkflowToolCoverage enforces that every tool referenced from a
 // GitHub Actions workflow as `./bin/<name>` is registered as an
 // ssot_artifact in the dep map. Decision 033 introduced this after an

@@ -1,0 +1,60 @@
+{
+  "id": "034-agent-contract-mirror-guard",
+  "title": "Executable AGENT_CONTRACT.md mirror guard - allowed/forbidden path lists must match agent-roles JSON",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Dep map declares agent-roles artifact mirrored_in=[AGENT_CONTRACT.md] since D001 but no executable check verified the mirror. D021 + D024 absorbed catch-up drift after the fact. D025 docfresh catches the case where a decision-PR forgets the doc update; D034 closes the symmetric case where the doc or JSON is edited independently"
+    },
+    {
+      "kind": "decision",
+      "ref": "025-doc-freshness-guard - same recurring-mirror class; D034 covers the symmetric case docfresh doesn't"
+    },
+    {
+      "kind": "decision",
+      "ref": "031-forbid-ssot-schemas + 032-c016-executable-guard - same SSOT-symmetry pattern, applied to data+schema pairs in forbidden_paths"
+    },
+    {
+      "kind": "decision",
+      "ref": "033-register-ci-tools - third executable cross-check added to ssotdeps cross-check; D034 is the fourth"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/ssotdeps.VerifyAgentContractMirror - regex over AGENT_CONTRACT.md extracts the code-fenced blocks under '### Allowed paths' and '### Forbidden paths' headings and diffSet against agent-roles dumb-agent role's allowed_paths and forbidden_paths. Wired into ssotdeps cross-check; runs in contracts.yml on every PR",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/ssotdeps/ssotdeps_test.go TestVerifyAgentContractMirrorAllMatch + TestVerifyAgentContractMirrorFlagsMDMissingEntry + TestVerifyAgentContractMirrorFlagsJSONMissingEntry + TestVerifyAgentContractMirrorBothListsChecked + TestVerifyAgentContractMirrorOrderingIndependent + TestVerifyAgentContractMirrorMissingFileSurfacesAsError + TestVerifyAgentContractMirrorNilRolesIsNoOp (7 cases)",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-018 - codifies the rule; concept-map bumped v0.21.0 to v0.22.0",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Adding ir/domain/** to dumb-agent forbidden_paths in agent-roles.riido.json but not to AGENT_CONTRACT.md: ssotdeps cross-check fires with 'AGENT_CONTRACT.md mirror drift (D034): \"ir/domain/**\" is in dumb-agent.forbidden_paths but missing from the AGENT_CONTRACT.md ### forbidden_paths code block'.",
+    "Symmetric drift (path in MD only): 'is in the AGENT_CONTRACT.md ### forbidden_paths code block but missing from dumb-agent.forbidden_paths'.",
+    "Reordering paths in either file: PASSES - comparison is set-based."
+  ],
+  "counterexamples": [
+    "Editing prose surrounding the code blocks is unaffected - D034 only diffs the fenced code-block contents.",
+    "Other agent-roles fields (max_files_per_pr, pr_isolation, auto_merge_paths) are NOT yet mirror-checked - successor decision can extend if those fields drift.",
+    "designer and guard-author roles are not currently mirrored as code blocks in AGENT_CONTRACT.md - rule is dumb-agent-specific."
+  ],
+  "created_at": "2026-06-03"
+}
