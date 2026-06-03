@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -33,6 +33,30 @@
       "description": "Recorded selection of top_down vs bottom_up for a work item, written as JSONL by tools/devpattern.",
       "examples": ["{\"work_item\":\"WI-001\",\"source\":\"top_down\",\"at\":\"2026-06-03T...\"}"],
       "decision": "001-initial-agreement"
+    },
+    {
+      "name": "WorkItem",
+      "kind": "aggregate",
+      "owner": "agent-cluster-contracts",
+      "description": "Unit of work an agent picks up. SSOT is dsl/domain/work-item.lisp; emitted to ir/domain/work-item.ir.json; consumed by backend and frontend through generated clients (never re-declared).",
+      "examples": ["{\"id\":\"WI-001\",\"title\":\"Bootstrap contracts repo\",\"state\":\"done\"}"],
+      "decision": "003-first-vertical-slice"
+    },
+    {
+      "name": "WorkItemCreated",
+      "kind": "event",
+      "owner": "agent-cluster-contracts",
+      "description": "Emitted when a new WorkItem appears. SSOT is dsl/domain/work-item-created.lisp; emitted to ir/domain/work-item-created.ir.json. Backend SSE endpoint /events emits this as its only event type in decision 003's scope.",
+      "examples": ["{\"work_item_id\":\"WI-001\",\"title\":\"Bootstrap contracts repo\"}"],
+      "decision": "003-first-vertical-slice"
+    },
+    {
+      "name": "GeneratedClient",
+      "kind": "artifact",
+      "owner": "agent-cluster-contracts",
+      "description": "Per-language consumer-side files emitted from IR by tools/gen-go-client and tools/gen-dart-client. Committed into the consumer repo; never edited by hand; drift detected by per-repo CI gates.",
+      "examples": ["backend/internal/contracts/work_item.go", "frontend/lib/contracts_client/work_item.dart"],
+      "decision": "003-first-vertical-slice"
     }
   ],
   "relationships": [
@@ -56,6 +80,20 @@
       "to": "Decision",
       "example": "A decision claiming generated_artifacts must list a source whose path is declared in ssot-dependency-map.riido.json.",
       "decision": "001-initial-agreement"
+    },
+    {
+      "from": "WorkItem",
+      "kind": "emits",
+      "to": "WorkItemCreated",
+      "example": "Creating a new WorkItem emits one WorkItemCreated event on the backend SSE surface.",
+      "decision": "003-first-vertical-slice"
+    },
+    {
+      "from": "GeneratedClient",
+      "kind": "implements",
+      "to": "WorkItem",
+      "example": "backend/internal/contracts/work_item.go is the Go representation of ir/domain/work-item.ir.json; frontend/lib/contracts_client/work_item.dart is the Dart representation.",
+      "decision": "003-first-vertical-slice"
     }
   ],
   "constraints": [

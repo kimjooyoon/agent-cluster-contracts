@@ -153,14 +153,26 @@ and including '/contracts/'. Falls back to ABS if the marker is absent."
                    ("dsl_file" . ,rel)
                    ("sha256"   . ,(sha256-of-file src)))))))
 
+(defun event->ir (entry)
+  (let* ((name  (getf entry :name))
+         (src   (getf entry :source-file))
+         (rel   (rel-to-contracts-root src))
+         (slots (getf entry :slots)))
+    `(:obj
+      ("kind"   . "event")
+      ("name"   . ,(kebab name))
+      ("slots"  . (:arr ,@(mapcar #'slot->ir slots)))
+      ("source" . (:obj
+                   ("dsl_file" . ,rel)
+                   ("sha256"   . ,(sha256-of-file src)))))))
+
 ;; ---------------------------------------------------------------------------
 ;; Drive: walk the registry, write one IR file per entry.
 ;; ---------------------------------------------------------------------------
 
-(defun write-aggregate (entry)
+(defun write-ir-entry (entry data)
   (let* ((name     (getf entry :name))
-         (filename (format nil "ir/domain/~A.ir.json" (kebab name)))
-         (data     (aggregate->ir entry)))
+         (filename (format nil "ir/domain/~A.ir.json" (kebab name))))
     (ensure-directories-exist filename)
     (with-open-file (s filename :direction :output
                                  :if-exists :supersede
@@ -171,7 +183,8 @@ and including '/contracts/'. Falls back to ABS if the marker is absent."
 
 (dolist (entry *registry*)
   (case (getf entry :kind)
-    (:aggregate (write-aggregate entry))
+    (:aggregate (write-ir-entry entry (aggregate->ir entry)))
+    (:event     (write-ir-entry entry (event->ir entry)))
     (t (error "emit-ir: unknown kind ~S in registry entry ~S"
               (getf entry :kind) entry))))
 

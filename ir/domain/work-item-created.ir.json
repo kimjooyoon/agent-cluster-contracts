@@ -1,0 +1,20 @@
+{
+  "kind": "event",
+  "name": "work-item-created",
+  "slots": [
+    {
+      "name": "work-item-id",
+      "required": true,
+      "type": "string"
+    },
+    {
+      "name": "title",
+      "required": true,
+      "type": "string"
+    }
+  ],
+  "source": {
+    "dsl_file": "dsl/domain/work-item-created.lisp",
+    "sha256": "a96935c11b7d935788222a9a211ebfbed435b26f2bc13f68a2386291f45fb15a"
+  }
+}

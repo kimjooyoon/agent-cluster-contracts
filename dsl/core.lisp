@@ -11,7 +11,8 @@
 (defpackage #:agent-cluster.dsl
   (:use #:cl)
   (:export #:*registry*
-           #:defaggregate))
+           #:defaggregate
+           #:defevent))
 
 (in-package #:agent-cluster.dsl)
 
@@ -38,6 +39,24 @@ Example:
     (state :type string :required t))"
   (let ((src (%current-source-file)))
     `(push (list :kind :aggregate
+                 :name ',name
+                 :slots ',slots
+                 :source-file ,src)
+           *registry*)))
+
+(defmacro defevent (name &body slots)
+  "Declare a domain event.
+
+Same slot syntax as DEFAGGREGATE. Event slots are always treated as required
+(events are immutable snapshots); the :required key is accepted but not
+enforced differently.
+
+Example:
+  (defevent work-item-created
+    (work-item-id :type string)
+    (title        :type string))"
+  (let ((src (%current-source-file)))
+    `(push (list :kind :event
                  :name ',name
                  :slots ',slots
                  :source-file ,src)
