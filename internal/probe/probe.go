@@ -432,15 +432,25 @@ func isDecisionFixturePath(p string) bool {
 	return strings.Contains(s, "/fixtures/positive/decision/") || strings.Contains(s, "/fixtures/negative/decision/")
 }
 
-// canonicalDecisionContentHash loads a decision-fixture data file,
-// strips identity-only fields (id, title, examples, counterexamples,
-// evidence, created_at, notes), and returns the SHA-256 of the
-// canonical JSON form (json.Marshal sorts map keys deterministically).
+// canonicalDecisionContentHash loads a decision-fixture data file
+// and returns a SHA-256 hash for dedup purposes. The strip-set is
+// category-specific:
+//
+//   - category="positive" (D037): ALL fields are identity. Every
+//     schema-valid positive decision fixture exercises the same
+//     validator code path (all rules pass via the same per-field
+//     checks). Two such fixtures add zero distinct validator
+//     coverage. The hash collapses to the empty-object hash so any
+//     two positive decision fixtures conflict in dedup.
+//   - category="negative" (D030): strip only the identity-only
+//     fields (id, title, examples, counterexamples, evidence,
+//     created_at, notes). Negatives exercise DIFFERENT validator
+//     branches (each rejects on a specific rule), so the remaining
+//     fields are diagnostic.
 //
 // Two fixtures sharing the same hash exercise the same validator
-// paths — only the schema-relevant content drives decision.Validate's
-// pass/fail outcome. D030 uses this for dedup on first occurrence.
-func canonicalDecisionContentHash(dataPath string) (string, error) {
+// paths. D030 + D037 use this for dedup on first occurrence.
+func canonicalDecisionContentHash(dataPath, category string) (string, error) {
 	raw, err := os.ReadFile(dataPath)
 	if err != nil {
 		return "", err
@@ -449,7 +459,22 @@ func canonicalDecisionContentHash(dataPath string) (string, error) {
 	if err := json.Unmarshal(raw, &data); err != nil {
 		return "", err
 	}
-	for _, field := range []string{"id", "title", "examples", "counterexamples", "evidence", "created_at", "notes"} {
+	var stripSet []string
+	switch category {
+	case "positive":
+		// D037: collapse all fields. Hash becomes the empty-object
+		// hash. Any two positive decision fixtures conflict.
+		stripSet = []string{
+			"id", "title", "owner", "status", "weak", "scope", "source",
+			"evidence", "affected_repos", "ssot_owner", "generated_artifacts",
+			"guards", "examples", "counterexamples", "supersedes",
+			"superseded_by", "created_at", "accepted_at", "notes",
+		}
+	default:
+		// D030: identity-only strip for negative fixtures.
+		stripSet = []string{"id", "title", "examples", "counterexamples", "evidence", "created_at", "notes"}
+	}
+	for _, field := range stripSet {
 		delete(data, field)
 	}
 	canonical, err := json.Marshal(data)
@@ -602,13 +627,13 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 					seenPurposes[key] = p.fixturePath
 				}
 			}
-			// D030: content-hash dedup. Runs AFTER purpose dedup so the
-			// reason field reflects the most-specific layer that fired.
-			// Decision-fixture-only for now; IR fixtures distinguish on
-			// `name` and adding a name-aware canonicalization is a
-			// follow-up decision when warranted.
+			// D030 + D037: canonical-content dedup. Runs AFTER purpose
+			// dedup so the reason field reflects the most-specific layer
+			// that fired. Decision-fixture-only for now; IR fixtures
+			// distinguish on `name` and a name-aware canonicalization is
+			// a follow-up decision when warranted.
 			if check.OK && isDecisionFixturePath(p.fixturePath) {
-				if hash, err := canonicalDecisionContentHash(p.fixturePath); err == nil && hash != "" {
+				if hash, err := canonicalDecisionContentHash(p.fixturePath, p.category); err == nil && hash != "" {
 					key := contentKey{
 						category:    p.category,
 						fixtureType: meta.FixtureType,
@@ -616,10 +641,17 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 					}
 					if firstPath, dup := seenContentHashes[key]; dup {
 						check.OK = false
-						check.Reason = fmt.Sprintf(
-							"duplicate canonical content (D030): %s and %s have the same SHA-256 after stripping (id, title, examples, counterexamples, evidence, created_at, notes). The new fixture exercises no additional validator path. Declare a fixture whose remaining structural content (status, scope, source, affected_repos, ssot_owner, generated_artifacts, guards, weak, supersedes) differs from existing fixtures in the same (category=%s, fixture_type=%s) bucket",
-							p.fixturePath, firstPath, p.category, meta.FixtureType,
-						)
+						if p.category == "positive" {
+							check.Reason = fmt.Sprintf(
+								"duplicate canonical content (D037): positive decision fixture %s collides with %s. Every schema-valid positive decision exercises the same validator code path (all rules pass), so at most one positive decision fixture per (category, fixture_type) bucket is allowed. To test a NEGATIVE scenario, move the fixture under fixtures/negative/decision/ and set meta.expected=fail with expected_error_contains pointing at the specific rule",
+								p.fixturePath, firstPath,
+							)
+						} else {
+							check.Reason = fmt.Sprintf(
+								"duplicate canonical content (D030): %s and %s have the same SHA-256 after stripping (id, title, examples, counterexamples, evidence, created_at, notes). The new fixture exercises no additional validator path. Declare a fixture whose remaining structural content (status, scope, source, affected_repos, ssot_owner, generated_artifacts, guards, weak, supersedes) differs from existing fixtures in the same (category=%s, fixture_type=%s) bucket",
+								p.fixturePath, firstPath, p.category, meta.FixtureType,
+							)
+						}
 					} else {
 						seenContentHashes[key] = p.fixturePath
 					}

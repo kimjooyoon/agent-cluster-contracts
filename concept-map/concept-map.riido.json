@@ -1,5 +1,5 @@
 {
-  "version": "0.24.0",
+  "version": "0.25.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -388,7 +388,7 @@
     },
     {
       "id": "C-015",
-      "rule": "Within the same (category, fixture_type=decision) bucket, fixture data files must hash to distinct canonical SHA-256 values after stripping identity-only fields (id, title, examples, counterexamples, evidence, created_at, notes). Two fixtures with the same canonical hash exercise the same validator paths — the second adds zero schema coverage and is rejected as `duplicate canonical content (D030)`.",
+      "rule": "Within the same (category, fixture_type=decision) bucket, fixture data files must hash to distinct canonical SHA-256 values. The strip-set is category-specific: for category=positive (D037), ALL fields are stripped — every schema-valid positive decision fixture exercises the same validator code path so at most one positive is allowed; for category=negative (D030), identity-only fields are stripped (id, title, examples, counterexamples, evidence, created_at, notes) — negatives test distinct rejection rules and remain distinguished by their schema-relevant content. Duplicates are rejected as `duplicate canonical content (D030)` or `(D037)` depending on category.",
       "rationale": "After D028 closed the 6-layer structural-fingerprint net, the dumb-agent's natural next bypass (observed in PR #97) was to file a fixture structurally identical to canonical-positive-minimal modulo identity fields — different id, title, examples, evidence.ref, created_at; same status/scope/source/owner/etc. Six existing layers passed it because nothing checked content-shape equivalence. C-015 closes this as the architecturally final structural defense for decision fixtures: the only remaining way to bypass is to declare a fixture whose schema-relevant content genuinely differs from existing fixtures, which is exactly what a valuable new test case looks like.",
       "examples": [
         "PR #97 bypass fixture decision-positive-governance-topdown.json had different id/title/examples/evidence.ref from decision-valid-minimal.json but same status/scope/source/owner/affected_repos/ssot_owner/generated_artifacts/guards — canonical hashes match; D030 rejects.",
@@ -398,8 +398,8 @@
         "IR aggregate/event/query fixtures are NOT subject to D030 yet — they distinguish on `name`, and a `name`-aware canonicalization is a follow-up decision when warranted.",
         "Fixtures whose canonical content genuinely differs (e.g. different source value, different scope, different affected_repos) are accepted — D030 only flags structurally-identical duplicates."
       ],
-      "guard_candidate": { "tool": "internal/probe.VerifyFixtures — seenContentHashes map keyed by (category, fixture_type, sha256(canonicalDecisionContentHash(data))); runs after the D015+D017 purpose dedup so the most-specific layer message wins", "status": "implemented" },
-      "decision": "030-content-hash-dedup"
+      "guard_candidate": { "tool": "internal/probe.VerifyFixtures — seenContentHashes map keyed by (category, fixture_type, sha256(canonicalDecisionContentHash(data, category))); the canonicalizer's strip-set is category-specific per D030 (negative) and D037 (positive)", "status": "implemented" },
+      "decision": "037-positive-fixture-canonical"
     },
     {
       "id": "C-016",

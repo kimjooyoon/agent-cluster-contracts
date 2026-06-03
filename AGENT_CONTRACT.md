@@ -167,17 +167,28 @@ applied in order; the first one that rejects wins:
    matches a banlist entry is rejected with a citation of the seeding
    decision — even if it's the only such fixture in the set. **Deleting
    the original does NOT reset the lockout.**
-5. **Canonical content hash (D030, decision fixtures only)**: probe
-   fixtures strips identity-only fields (`id`, `title`, `examples`,
-   `counterexamples`, `evidence`, `created_at`, `notes`) from the
-   data JSON, hashes the rest, and rejects any fixture whose hash
-   matches a fixture already seen in the same (category,
-   fixture_type) bucket. **Two fixtures whose schema-relevant content
-   is identical add zero validator coverage** — declare a fixture
-   whose status/scope/source/affected_repos/etc. actually differ.
-   This is the architecturally final structural defense; ir-aggregate
-   and ir-event are not yet covered (separate decision when
-   warranted).
+5. **Canonical content hash (D030 + D037, decision fixtures only)**:
+   probe fixtures dedup-checks fixture data by SHA-256 of the
+   canonical form. The strip-set is **category-specific**:
+   - **positive (D037)**: ALL fields are stripped (id, title, owner,
+     status, weak, scope, source, evidence, affected_repos,
+     ssot_owner, generated_artifacts, guards, examples,
+     counterexamples, supersedes, superseded_by, created_at,
+     accepted_at, notes). Every schema-valid positive decision
+     fixture exercises the same validator code path ("all rules
+     pass"), so **at most one positive decision fixture per
+     (category, fixture_type) bucket is allowed**. If you need to
+     test a NEGATIVE scenario, file the fixture under
+     `fixtures/negative/decision/` with `expected: "fail"` and
+     `expected_error_contains` pointing at the specific rule.
+   - **negative (D030)**: only identity-only fields stripped (id,
+     title, examples, counterexamples, evidence, created_at, notes).
+     Negative fixtures test distinct validator rejection paths;
+     their schema-relevant content is what makes each one
+     diagnostic.
+
+   ir-aggregate and ir-event are not yet covered (separate decision
+   when warranted).
 
 ##### Fixture id convention (D023 + D026)
 

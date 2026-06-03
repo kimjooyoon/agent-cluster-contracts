@@ -1,0 +1,56 @@
+{
+  "id": "037-positive-fixture-canonical",
+  "title": "D030 stronger for positive decision fixtures - all fields are identity (max 1 per bucket)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "PR #105 (cycle-20260603-0001) submitted decision-positive-governance-minimal-areas with affected_repos=[contracts, backend] — structurally different from canonical decision-valid-minimal (single repo) so D030 canonical-content hash differed and the fixture passed all 6 noise-marker layers + D030 + got CI green. But the validator does not differentiate code paths based on affected_repos length so the fixture adds zero validator coverage"
+    },
+    {
+      "kind": "decision",
+      "ref": "030-content-hash-dedup — D037 tightens the strip-set for category=positive; D030's negative strip-set is unchanged"
+    },
+    {
+      "kind": "decision",
+      "ref": "028-dumb-agent-title-marker — predicted the next bypass would target a different fixture_type or wear down the dedup further; D037 closes a real instance of that"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/probe.canonicalDecisionContentHash(dataPath, category) — category-specific strip-set. For positive: ALL 19 fields stripped → empty-object hash → all positive decision fixtures collide → at most 1 per (category, fixture_type) bucket. For negative: D030's identity-only strip-set unchanged",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/probe/probe_test.go TestFixturesD037RejectsAnySecondPositiveDecisionFixture + TestFixturesD037CatchesAffectedReposBypass (proves the exact PR #105 pattern is now caught) + updated TestFixturesD030RejectsStructurallyIdenticalDecisionFixtures (now accepts D030 OR D037 message)",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-015 rewritten for category-specific behavior; concept-map bumped v0.24.0 → v0.25.0",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "PR #105's decision-positive-governance-minimal-areas vs decision-valid-minimal: both are positive decision fixtures. Under D030 their canonical hashes differed (different affected_repos) so the second passed. Under D037 both strip to {} → same hash → second rejected with 'duplicate canonical content (D037)'.",
+    "On main today: only one positive decision fixture exists (decision-valid-minimal.json). D037 immediately enforces 'at most 1' going forward.",
+    "Adding a NEW positive decision fixture that should pass: only possible if no positive decision fixture exists yet OR by replacing the canonical. To test a more specific positive path, file a NEGATIVE fixture that exercises the rejection-rule side and verify the inverse coverage that way."
+  ],
+  "counterexamples": [
+    "Negative decision fixtures are NOT affected by D037 — D030's narrow strip-set (id/title/examples/counterexamples/evidence/created_at/notes) still applies. Each negative tests a distinct rejection rule via expected_error_contains.",
+    "ir-aggregate / ir-event / query fixtures are not under D030 or D037 yet — they distinguish on `name` (the entity modeled) and need a name-aware canonicalizer.",
+    "Removing the canonical decision-valid-minimal.json without a replacement would leave no positive coverage; the project intent is 'one canonical positive fixture per fixture_type that proves the validator accepts a minimal-valid record'."
+  ],
+  "created_at": "2026-06-03"
+}
