@@ -97,6 +97,14 @@
       "description": "JSON Schema (ir/schema/ir.schema.json) describing the structural shape of every ir/domain/<name>.ir.json document. Decision 007 added this; before then, C-002 referenced a schema that didn't exist. probe fixtures mirrors these rules in Go (no third-party validator dep) so fixture_type=ir-aggregate / ir-event / query can be checked.",
       "examples": ["ir/schema/ir.schema.json", "fixtures/positive/work-item/min.json with fixture_type ir-aggregate"],
       "decision": "007-agent-roles-glob-fix-and-ir-schema-and-ir-fixture-types"
+    },
+    {
+      "name": "MergeAuthority",
+      "kind": "policy",
+      "owner": "agent-cluster-contracts",
+      "description": "Bounded merge grant attached to a role (currently only dumb-agent). agentguard merge-check decides merge_allowed iff every changed file matches auto_merge_paths, none matches forbidden_paths, file count <= max_files_per_pr. Stricter than write-time agentguard verify which uses allowed_paths.",
+      "examples": ["dumb-agent merge_authority.granted=true with auto_merge_paths covering fixtures/positive, fixtures/negative, fuzz/corpus, reports/guard-candidates, reports/environment-blockers"],
+      "decision": "010-dumb-agent-bounded-merge-authority"
     }
   ],
   "relationships": [
@@ -234,6 +242,21 @@
       ],
       "guard_candidate": { "tool": "probe preflight (already enforced for dumb-agent via AGENT_CONTRACT.md; future hook: pre-commit refusing fixture writes when probe preflight is red)", "status": "pending" },
       "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "id": "C-007",
+      "rule": "A role may auto-merge a PR only if every changed file matches at least one auto_merge_paths glob declared on that role, no file matches any forbidden_paths glob, and the file count does not exceed max_files_per_pr. agentguard merge-check is the executable predicate.",
+      "rationale": "Bounded merge authority lets dumb-agent close its own loop (write candidate → CI → merge) without granting it the power to alter guard rails. Restricting merges to auto_merge_paths (a subset of allowed_paths) keeps writable-but-needs-review classes — like ir/candidates/ — out of the auto-merge surface.",
+      "examples": [
+        "dumb-agent opens a PR adding fixtures/positive/x.json + .meta.json. merge-check returns merge_allowed. CI passes. Dumb-agent calls gh pr merge.",
+        "dumb-agent opens a PR adding ir/candidates/exp.json. merge-check returns merge_blocked: 'not auto-mergeable: outside auto_merge_paths'. Designer reviews and merges manually."
+      ],
+      "counterexamples": [
+        "dumb-agent opens a PR editing tools/decision/main.go and tries to auto-merge — merge-check FORBIDDEN, never gets past.",
+        "A role with auto_merge_eligible: true but no auto_merge_paths declared — merge-check refuses everything (defensive default)."
+      ],
+      "guard_candidate": { "tool": "agentguard merge-check (D010 ships predicate; future workflow may auto-invoke gh pr merge based on its output)", "status": "implemented" },
+      "decision": "010-dumb-agent-bounded-merge-authority"
     },
     {
       "id": "C-006",

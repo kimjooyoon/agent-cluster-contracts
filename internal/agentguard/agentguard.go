@@ -32,16 +32,24 @@ type Roles struct {
 }
 
 type Role struct {
-	ID                string      `json:"id"`
-	Label             string      `json:"label"`
-	Description       string      `json:"description"`
-	Decision          string      `json:"decision,omitempty"`
-	AllowedPaths      []string    `json:"allowed_paths"`
-	ForbiddenPaths    []string    `json:"forbidden_paths"`
-	PRIsolation       PRIsolation `json:"pr_isolation"`
-	MaxFilesPerPR     int         `json:"max_files_per_pr,omitempty"`
-	AutoMergeEligible bool        `json:"auto_merge_eligible,omitempty"`
-	AutoMergePaths    []string    `json:"auto_merge_paths,omitempty"`
+	ID                string           `json:"id"`
+	Label             string           `json:"label"`
+	Description       string           `json:"description"`
+	Decision          string           `json:"decision,omitempty"`
+	AllowedPaths      []string         `json:"allowed_paths"`
+	ForbiddenPaths    []string         `json:"forbidden_paths"`
+	PRIsolation       PRIsolation      `json:"pr_isolation"`
+	MaxFilesPerPR     int              `json:"max_files_per_pr,omitempty"`
+	AutoMergeEligible bool             `json:"auto_merge_eligible,omitempty"`
+	AutoMergePaths    []string         `json:"auto_merge_paths,omitempty"`
+	MergeAuthority    *MergeAuthority  `json:"merge_authority,omitempty"`
+}
+
+// MergeAuthority records the per-role bounded-merge grant from decision 010.
+type MergeAuthority struct {
+	Granted   bool   `json:"granted"`
+	Decision  string `json:"decision"`
+	Rationale string `json:"rationale"`
 }
 
 type PRIsolation struct {
@@ -171,6 +179,18 @@ type CheckResult struct {
 	Hints      []string    `json:"hints,omitempty"`
 }
 
+// MergeResult is the verdict from MergeCheck (decision 010). Stricter than
+// Check: a role may be allowed to *write* a path (allowed_paths) but not
+// allowed to *auto-merge* it (auto_merge_paths). The dumb-agent reads
+// Allowed and either calls `gh pr merge` or waits for designer review.
+type MergeResult struct {
+	RoleID   string   `json:"role"`
+	Allowed  bool     `json:"allowed"`
+	Status   string   `json:"status"`   // "merge_allowed" | "merge_blocked"
+	Reasons  []string `json:"reasons"`  // empty when Allowed
+	Files    []string `json:"files"`
+}
+
 // Check applies the role's rules to the changed paths and returns the result.
 func Check(role *Role, changed []string) CheckResult {
 	res := CheckResult{Files: changed}
@@ -251,6 +271,69 @@ func Check(role *Role, changed []string) CheckResult {
 	}
 
 	res.OK = len(res.Violations) == 0
+	return res
+}
+
+// MergeCheck decides whether a role may merge a PR with the given file list.
+// Decision 010 introduced this — it's strictly stricter than Check:
+//
+//   - Every changed file must match at least one auto_merge_paths glob
+//     (NOT allowed_paths). If a role has no auto_merge_paths, MergeCheck
+//     refuses every PR.
+//   - No changed file may match any forbidden_paths glob (forbidden wins,
+//     same as Check).
+//   - File count must be <= MaxFilesPerPR.
+//
+// The dumb-agent reads Allowed before calling `gh pr merge`. CI's required
+// checks (verify, drift, scan, etc.) are orthogonal — they're verified by
+// the merge platform; MergeCheck only validates the diff itself.
+func MergeCheck(role *Role, changed []string) MergeResult {
+	res := MergeResult{Files: changed}
+	if role == nil {
+		res.Allowed = false
+		res.Status = "merge_blocked"
+		res.Reasons = []string{"no role provided"}
+		return res
+	}
+	res.RoleID = role.ID
+
+	if len(role.AutoMergePaths) == 0 {
+		res.Allowed = false
+		res.Status = "merge_blocked"
+		res.Reasons = []string{
+			fmt.Sprintf("role %q has no auto_merge_paths — bounded merge authority not granted", role.ID),
+		}
+		return res
+	}
+
+	if role.MaxFilesPerPR > 0 && len(changed) > role.MaxFilesPerPR {
+		res.Reasons = append(res.Reasons,
+			fmt.Sprintf("PR touches %d files; role %q allows at most %d for auto-merge", len(changed), role.ID, role.MaxFilesPerPR))
+	}
+
+	for _, raw := range changed {
+		p := filepath.ToSlash(strings.TrimSpace(raw))
+		if p == "" {
+			continue
+		}
+		if pat, hit := matchAny(p, role.ForbiddenPaths); hit {
+			res.Reasons = append(res.Reasons,
+				fmt.Sprintf("FORBIDDEN: %s matches forbidden_paths pattern %q", p, pat))
+			continue
+		}
+		if _, hit := matchAny(p, role.AutoMergePaths); !hit {
+			res.Reasons = append(res.Reasons,
+				fmt.Sprintf("not auto-mergeable: %s outside auto_merge_paths for role %s (writable but designer must review)", p, role.ID))
+		}
+	}
+
+	if len(res.Reasons) == 0 {
+		res.Allowed = true
+		res.Status = "merge_allowed"
+	} else {
+		res.Allowed = false
+		res.Status = "merge_blocked"
+	}
 	return res
 }
 

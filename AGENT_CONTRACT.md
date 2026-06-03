@@ -252,6 +252,38 @@ note instead of a file in some other location.
 - **Never** invent domain vocabulary. If a new word seems needed, create a
   guard-candidate note under `reports/guard-candidates/` instead.
 
+### Bounded merge authority (decision 010)
+
+Dumb-agent **may merge its own PRs** when ALL of the following hold:
+
+1. `agentguard merge-check --role dumb-agent --stdin < changed.txt` returns
+   `merge_allowed` (every file in `auto_merge_paths`, none in
+   `forbidden_paths`, ≤ `max_files_per_pr`).
+2. Every required CI check on the PR has passed (`verify`, `enforce-role`,
+   `scan`, plus any role-specific checks).
+3. Before merging: `probe preflight` on `main` returns `candidate_allowed`.
+4. After merging: dumb-agent re-runs `probe preflight` on `main`. If status
+   flips to `baseline_blocked`, dumb-agent must immediately stop further
+   merges and file EITHER **one** `reports/environment-blockers/` note OR
+   **one** revert PR — never both, never neither.
+
+**Forbidden merge scope** (broader than the role's write forbidden_paths —
+merge-check is stricter): `tools/**`, `.github/workflows/**`, `decisions/**`,
+`dsl/**`, `ir/schema/**`, `agent-roles.riido.json`, `agent-roles.schema.json`,
+`ssot-dependency-map.riido.json`, `concept-map/**`, `backend/**`,
+`frontend/**`. Even if a future bug widens `allowed_paths`, the merge-check
+predicate still blocks these because they're never in `auto_merge_paths`.
+
+**ir/candidates/ is intentionally writable but NOT auto-mergeable.** Dumb-agent
+may file candidate IR documents, but a designer reviews them before merge.
+
+### Merge preflight one-liner
+
+```sh
+./bin/agentguard merge-check --role dumb-agent --stdin --json < /tmp/changed.txt
+# {"role":"dumb-agent","allowed":true,"status":"merge_allowed","reasons":[],"files":[...]}
+```
+
 ### How to think about failure
 
 - Your candidate failed verifier? → Don't "fix" the verifier. Minimize the
