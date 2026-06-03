@@ -1,0 +1,7 @@
+{
+  "fixture_type": "decision",
+  "verifier": "work-item ir validation",
+  "expected": "fail",
+  "from_role": "dumb-agent",
+  "supersedes": null
+}
