@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/jsonutil"
 )
@@ -78,6 +79,96 @@ func Load(root string) (*Map, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+var (
+	semverRe    = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+	idRe        = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	validKinds  = map[string]bool{
+		"decision": true, "concept-map": true, "ssot-dependency-map": true,
+		"research": true, "agent-roles": true, "dsl-source": true,
+		"dsl-emitter": true, "ir": true, "code-generator": true,
+		"verifier": true, "doc": true, "report-area": true, "schema": true,
+	}
+)
+
+// ValidateMap mirrors ssot-dependency-map.schema.json in Go (decision 011).
+// Returns one error per rule violation; empty slice means OK. Catches typos
+// and structural issues that Load + plain JSON unmarshal silently accept.
+func ValidateMap(m *Map) []error {
+	if m == nil {
+		return []error{fmt.Errorf("ssot-dep-map: nil")}
+	}
+	var errs []error
+	if !semverRe.MatchString(m.Version) {
+		errs = append(errs, fmt.Errorf("version %q: must match X.Y.Z", m.Version))
+	}
+	if m.Owner != "agent-cluster-contracts" {
+		errs = append(errs, fmt.Errorf("owner %q: must be agent-cluster-contracts", m.Owner))
+	}
+	if len(m.SsotArtifacts) == 0 {
+		errs = append(errs, fmt.Errorf("ssot_artifacts: at least one artifact required"))
+	}
+	seenIDs := map[string]bool{}
+	for i, a := range m.SsotArtifacts {
+		if !idRe.MatchString(a.ID) {
+			errs = append(errs, fmt.Errorf("ssot_artifacts[%d].id %q: must match ^[a-z][a-z0-9-]*$", i, a.ID))
+		}
+		if seenIDs[a.ID] {
+			errs = append(errs, fmt.Errorf("ssot_artifacts[%d].id %q: duplicate", i, a.ID))
+		}
+		seenIDs[a.ID] = true
+		if !validKinds[a.Kind] {
+			errs = append(errs, fmt.Errorf("ssot_artifacts[%d] (%s).kind %q: invalid (see schema enum)", i, a.ID, a.Kind))
+		}
+		if a.Path == "" {
+			errs = append(errs, fmt.Errorf("ssot_artifacts[%d] (%s).path: required", i, a.ID))
+		}
+		if a.OwnedBy == "" {
+			errs = append(errs, fmt.Errorf("ssot_artifacts[%d] (%s).owned_by: required", i, a.ID))
+		}
+	}
+	for i, l := range m.GenerationLinks {
+		if l.From == "" {
+			errs = append(errs, fmt.Errorf("generation_links[%d].from: required", i))
+		}
+		if l.Emitter == "" {
+			errs = append(errs, fmt.Errorf("generation_links[%d].emitter: required", i))
+		}
+		if l.To == "" {
+			errs = append(errs, fmt.Errorf("generation_links[%d].to: required", i))
+		}
+	}
+	for i, l := range m.ConsumptionLinks {
+		if l.SSOT == "" {
+			errs = append(errs, fmt.Errorf("consumption_links[%d].ssot: required", i))
+		} else if !seenIDs[l.SSOT] {
+			errs = append(errs, fmt.Errorf("consumption_links[%d].ssot %q: references unknown artifact", i, l.SSOT))
+		}
+		if l.ConsumerRepo == "" {
+			errs = append(errs, fmt.Errorf("consumption_links[%d].consumer_repo: required", i))
+		}
+		if l.ConsumerPath == "" {
+			errs = append(errs, fmt.Errorf("consumption_links[%d].consumer_path: required", i))
+		}
+	}
+	for i, g := range m.CIGates {
+		if g.Repo == "" {
+			errs = append(errs, fmt.Errorf("ci_gates[%d].repo: required", i))
+		}
+		if g.Workflow == "" {
+			errs = append(errs, fmt.Errorf("ci_gates[%d].workflow: required", i))
+		}
+		if len(g.Verifies) == 0 {
+			errs = append(errs, fmt.Errorf("ci_gates[%d].verifies: at least one entry required (artifact id or free-form concern description)", i))
+		}
+		for j, v := range g.Verifies {
+			if v == "" {
+				errs = append(errs, fmt.Errorf("ci_gates[%d].verifies[%d]: empty string", i, j))
+			}
+		}
+	}
+	return errs
 }
 
 // Mode controls how much of the dep map is checked.

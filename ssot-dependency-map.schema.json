@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-cluster.example/contracts/ssot-dependency-map.schema.json",
+  "title": "SSOT Dependency Map",
+  "description": "Schema for ssot-dependency-map.riido.json. Declares every SSOT artifact, the chain that generates each artifact, the consumer paths that depend on it, and the CI gates that protect it. ssotdeps verify walks this file at boot. Decision 011 introduced this schema; before then, the SSOT artifact had no shape contract.",
+  "type": "object",
+  "required": ["version", "owner", "ssot_artifacts"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "owner": { "type": "string", "enum": ["agent-cluster-contracts"] },
+    "description": { "type": "string" },
+    "ssot_artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ssotArtifact" }
+    },
+    "generation_links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/generationLink" }
+    },
+    "consumption_links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumptionLink" }
+    },
+    "ci_gates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ciGate" }
+    },
+    "pending": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "ssotArtifact": {
+      "type": "object",
+      "required": ["id", "kind", "path", "owned_by"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "decision", "concept-map", "ssot-dependency-map", "research", "agent-roles",
+            "dsl-source", "dsl-emitter", "ir", "code-generator", "verifier",
+            "doc", "report-area", "schema"
+          ]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "schema": { "type": ["string", "null"] },
+        "mirrored_in": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "owned_by": { "type": "string", "minLength": 1 }
+      }
+    },
+    "generationLink": {
+      "type": "object",
+      "required": ["from", "emitter", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "emitter": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "consumer_repo": { "type": "string", "minLength": 1 },
+        "guard": { "type": "string" }
+      }
+    },
+    "consumptionLink": {
+      "type": "object",
+      "required": ["ssot", "consumer_repo", "consumer_path"],
+      "additionalProperties": false,
+      "properties": {
+        "ssot": { "type": "string", "minLength": 1 },
+        "consumer_repo": { "type": "string", "minLength": 1 },
+        "consumer_path": { "type": "string", "minLength": 1 },
+        "via": { "type": "string" },
+        "guard": { "type": "string" },
+        "planned": { "type": "boolean" }
+      }
+    },
+    "ciGate": {
+      "type": "object",
+      "required": ["repo", "workflow", "verifies"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": { "type": "string", "minLength": 1 },
+        "workflow": { "type": "string", "minLength": 1 },
+        "verifies": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "planned": { "type": "boolean" }
+      }
+    }
+  }
+}
