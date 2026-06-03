@@ -1,5 +1,5 @@
 {
-  "version": "0.21.0",
+  "version": "0.22.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -430,6 +430,23 @@
       ],
       "guard_candidate": { "tool": "internal/ssotdeps.VerifyWorkflowToolCoverage (D033) — regex over .github/workflows/*.yml extracts ./bin/<tool> references and asserts each maps to an ssot_artifact with path tools/<tool>/main.go. Wired into ssotdeps cross-check; runs in contracts.yml on every PR", "status": "implemented" },
       "decision": "033-register-ci-tools"
+    },
+    {
+      "id": "C-018",
+      "rule": "The `### Allowed paths` and `### Forbidden paths` code blocks in AGENT_CONTRACT.md MUST contain exactly the same path-glob set (order-independent, no duplicates) as the dumb-agent role's allowed_paths and forbidden_paths in agent-roles.riido.json. The dep map declares this mirror via `agent-roles` artifact's `mirrored_in: [AGENT_CONTRACT.md]`; D034 makes the mirror claim verifiable instead of trusting humans not to drift.",
+      "rationale": "D021 and D024 were both pure AGENT_CONTRACT.md catch-up cleanups absorbing executable rules that had landed earlier. D025 docfresh catches one direction (decision added without doc touch); it does NOT catch the case where the doc was edited and JSON wasn't, or where one path was added to one and forgotten in the other. D031 surfaced the second case (purpose-banlist had both halves; the other three SSOTs only listed data files in JSON, schema files implicit). D034 closes the remaining surface: any future divergence between the two halves of the mirror fails contracts CI on the next PR.",
+      "examples": [
+        "Adding ir/domain/** to agent-roles dumb-agent forbidden_paths but not to AGENT_CONTRACT.md → ssotdeps cross-check reports 'AGENT_CONTRACT.md mirror drift (D034): ir/domain/** is in dumb-agent.forbidden_paths but missing from the AGENT_CONTRACT.md ### forbidden_paths code block'.",
+        "Removing a path from AGENT_CONTRACT.md without removing it from JSON → symmetric error: 'missing from dumb-agent.forbidden_paths'.",
+        "Lists in different order match — comparison is set-based."
+      ],
+      "counterexamples": [
+        "Editing prose surrounding the code blocks (descriptions, examples, narrative) is unaffected — D034 only checks the code-fenced path lists.",
+        "Other agent-roles fields (max_files_per_pr, pr_isolation, auto_merge_paths) are not mirrored in AGENT_CONTRACT.md as code blocks; D034 leaves them out of scope (could be extended in a successor decision).",
+        "Other roles (designer, guard-author) are not currently mirrored as code blocks in AGENT_CONTRACT.md; the rule is dumb-agent-specific."
+      ],
+      "guard_candidate": { "tool": "internal/ssotdeps.VerifyAgentContractMirror (D034) — extracts code blocks via regex over `### Allowed paths` and `### Forbidden paths` headings, compares as sets against agent-roles dumb-agent role's allowed_paths and forbidden_paths. Wired into ssotdeps cross-check; runs in contracts.yml on every PR", "status": "implemented" },
+      "decision": "034-agent-contract-mirror-guard"
     }
   ]
 }
