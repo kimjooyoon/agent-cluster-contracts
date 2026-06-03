@@ -77,6 +77,7 @@ func DefaultSkip() Skip {
 	return Skip{
 		SuffixSkips: []string{
 			filepath.Join("internal", "secretscan", "secretscan.go"),
+			filepath.Join("internal", "secretscan", "secretscan_test.go"),
 			filepath.Join("tools", "secretscan", "main.go"),
 		},
 	}
