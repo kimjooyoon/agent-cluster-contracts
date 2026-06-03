@@ -1,0 +1,53 @@
+{
+  "id": "014-vocablint-cross-repo-c001-enforcement",
+  "title": "vocablint: executable cross-repo enforcement of constraint C-001 (no vocabulary redefinition)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "ci",
+      "backend",
+      "frontend"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "001-initial-agreement"
+    },
+    {
+      "kind": "decision",
+      "ref": "008-wirelint-cross-cutting-wire-name-enforcement"
+    },
+    {
+      "kind": "file",
+      "ref": "concept-map/concept-map.riido.json (C-001 guard_candidate pending)"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal continuing ssot improvement"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts",
+    "agent-cluster-backend",
+    "agent-cluster-frontend"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Detection patterns: Go uses 'type \u003cPascal\u003e' (catches struct",
+    "interface",
+    "alias). Dart uses 'class \u003cPascal\u003e' or 'abstract class \u003cPascal\u003e'. Both are word-boundary aware so partial matches (WorkItemBuilder",
+    "WorkItemHelper) do NOT trip."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
