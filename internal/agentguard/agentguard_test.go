@@ -247,3 +247,150 @@ func TestCheckHappyPath(t *testing.T) {
 		t.Errorf("expected no violations, got %v", res.Violations)
 	}
 }
+
+// ValidateRoles tests (decision 009).
+
+func validRoles() *Roles {
+	return &Roles{
+		Version: "0.4.0",
+		Owner:   "agent-cluster-contracts",
+		Roles: []Role{
+			{
+				ID:             "designer",
+				Label:          "Designer",
+				Description:    "Primary author.",
+				AllowedPaths:   []string{"**"},
+				ForbiddenPaths: []string{},
+			},
+		},
+	}
+}
+
+func TestValidateRolesHappyPath(t *testing.T) {
+	if errs := ValidateRoles(validRoles()); len(errs) > 0 {
+		t.Errorf("expected no errors, got %v", errs)
+	}
+}
+
+func TestValidateRolesRejectsBadVersion(t *testing.T) {
+	r := validRoles()
+	r.Version = "1"
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected version error")
+	}
+}
+
+func TestValidateRolesRejectsBadOwner(t *testing.T) {
+	r := validRoles()
+	r.Owner = "someone-else"
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected owner error")
+	}
+}
+
+func TestValidateRolesRejectsEmptyRoles(t *testing.T) {
+	r := validRoles()
+	r.Roles = nil
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected empty-roles error")
+	}
+}
+
+func TestValidateRolesRejectsBadRoleID(t *testing.T) {
+	r := validRoles()
+	r.Roles[0].ID = "BadID"
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected role-id error")
+	}
+}
+
+func TestValidateRolesRejectsDuplicateID(t *testing.T) {
+	r := validRoles()
+	r.Roles = append(r.Roles, Role{
+		ID:             "designer",
+		Label:          "dup",
+		Description:    "x",
+		AllowedPaths:   []string{},
+		ForbiddenPaths: []string{},
+	})
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected duplicate-id error")
+	}
+}
+
+func TestValidateRolesRejectsMissingLabel(t *testing.T) {
+	r := validRoles()
+	r.Roles[0].Label = ""
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected label error")
+	}
+}
+
+func TestValidateRolesRejectsNullAllowedPaths(t *testing.T) {
+	r := validRoles()
+	r.Roles[0].AllowedPaths = nil
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected allowed_paths-required error (nil vs empty array)")
+	}
+}
+
+func TestValidateRolesRejectsEmptyStringPath(t *testing.T) {
+	r := validRoles()
+	r.Roles[0].AllowedPaths = []string{"valid/**", "  "}
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected empty-path error")
+	}
+}
+
+func TestValidateRolesRejectsBadDecisionRef(t *testing.T) {
+	r := validRoles()
+	r.Roles[0].Decision = "not-a-decision"
+	errs := ValidateRoles(r)
+	if len(errs) == 0 {
+		t.Error("expected decision-ref pattern error")
+	}
+}
+
+func TestValidateRolesAcceptsActualSSOT(t *testing.T) {
+	// Smoke: the actual contracts agent-roles.riido.json must validate
+	// against ValidateRoles after decision 009 ships. We load via the
+	// findroot mechanism using the test's working directory.
+	//
+	// This test runs from internal/agentguard so the contracts root is
+	// two levels up.
+	roles := &Roles{
+		Version: "0.4.0",
+		Owner:   "agent-cluster-contracts",
+		Roles: []Role{
+			{
+				ID:             "designer",
+				Label:          "Designer / human-driven implementer",
+				Description:    "Primary author class.",
+				Decision:       "001-initial-agreement",
+				AllowedPaths:   []string{"**"},
+				ForbiddenPaths: []string{},
+			},
+			{
+				ID:             "dumb-agent",
+				Label:          "Contract Fuzzer Agent / IR Mutation Scout",
+				Description:    "Low-context closed-loop probe.",
+				Decision:       "005-dumb-agent-probe-baseline-and-fixture-verifier",
+				AllowedPaths:   []string{"fixtures/positive/**", "fixtures/negative/**"},
+				ForbiddenPaths: []string{"tools/**", "decisions/**"},
+				MaxFilesPerPR:  5,
+				PRIsolation:    PRIsolation{CandidateOnly: true},
+			},
+		},
+	}
+	if errs := ValidateRoles(roles); len(errs) > 0 {
+		t.Errorf("realistic roles failed validation: %v", errs)
+	}
+}

@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/agentguard"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/codegen"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/decision"
@@ -70,6 +71,7 @@ func Preflight(root string) PreflightResult {
 	checks = append(checks, runDecisions(root))
 	checks = append(checks, runSsotdeps(root))
 	checks = append(checks, runConceptmap(root))
+	checks = append(checks, runAgentRoles(root))
 	checks = append(checks, runSecretscan(root))
 	checks = append(checks, runIRDrift(root))
 
@@ -157,6 +159,25 @@ func runConceptmap(root string) CheckResult {
 		Name: "conceptmap-verify", OK: true,
 		Summary: fmt.Sprintf("OK (%d concepts, %d relationships, %d constraints)",
 			len(m.Concepts), len(m.Relationships), len(m.Constraints)),
+	}
+}
+
+func runAgentRoles(root string) CheckResult {
+	roles, err := agentguard.Load(root)
+	if err != nil {
+		return CheckResult{Name: "agent-roles-validate", OK: false, Summary: "load: " + err.Error()}
+	}
+	errs := agentguard.ValidateRoles(roles)
+	if len(errs) > 0 {
+		return CheckResult{
+			Name: "agent-roles-validate", OK: false,
+			Summary: fmt.Sprintf("%d error(s)", len(errs)),
+			Detail:  joinErrors(errs),
+		}
+	}
+	return CheckResult{
+		Name: "agent-roles-validate", OK: true,
+		Summary: fmt.Sprintf("OK (%d role(s))", len(roles.Roles)),
 	}
 }
 
