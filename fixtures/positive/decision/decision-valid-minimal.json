@@ -1,0 +1,26 @@
+{
+  "id": "999-fixture-positive",
+  "title": "Positive fixture: minimal valid decision record shape",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "top_down",
+  "evidence": [
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-valid-minimal.json"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": [],
+  "guards": [],
+  "examples": [
+    "This fixture stays valid under the current decision schema."
+  ],
+  "counterexamples": [],
+  "created_at": "2026-06-03"
+}
