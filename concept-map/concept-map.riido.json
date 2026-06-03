@@ -1,5 +1,5 @@
 {
-  "version": "0.8.0",
+  "version": "0.9.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -287,6 +287,21 @@
       ],
       "guard_candidate": { "tool": "probe fixtures (D015): reads meta.purpose, fails on empty or duplicate (category, fixture_type, purpose) triples", "status": "implemented" },
       "decision": "015-fixture-purpose-and-dedup"
+    },
+    {
+      "id": "C-009",
+      "rule": "GitHub branch protection on main must have strict_required_status_checks_policy=true. A PR cannot merge until its base is up-to-date with main AND its required checks re-pass against that updated base.",
+      "rationale": "Without strict=true, a PR can pass CI under old verifier code, then merge after a stricter verifier lands on main — bringing files into main that would fail under main's current verifier. Observed at D015: PR #65 (cycle-30 fixture) merged after D015's purpose requirement landed, even though the fixture lacked purpose. strict=true closes that race window for every new gate.",
+      "examples": [
+        "Repo ruleset 17209686 ('main' ruleset) has rules[type=required_status_checks].parameters.strict_required_status_checks_policy=true. After this decision, dumb-agent automerge requires PRs to be rebased to current main before gh pr merge --auto fires.",
+        "When the contracts repo adds a new required check (e.g. vocablint becomes a required status), every queued PR must rebase + repass before merging."
+      ],
+      "counterexamples": [
+        "strict=false (pre-D016): PR opened at SHA X, CI runs against X+base, passes; D015 lands at SHA Y > X; PR merges into Y carrying file that fails the Y verifier. Main goes red.",
+        "Disabling the strict policy on a future ruleset edit — explicitly forbidden without superseding D016."
+      ],
+      "guard_candidate": { "tool": "gh api repos/.../rulesets/17209686 PUT with strict_required_status_checks_policy=true (configured 2026-06-03). Manual change reversible via repo settings — a future check could query the API and fail CI if strict ever goes back to false.", "status": "implemented" },
+      "decision": "016-branch-protection-strict-status-checks"
     }
   ]
 }

@@ -1,0 +1,43 @@
+{
+  "id": "016-branch-protection-strict-status-checks",
+  "title": "Branch protection: strict_required_status_checks_policy=true on main (race-condition fix)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "ci",
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "PR #65 cycle-30 merged after D015 with stale CI"
+    },
+    {
+      "kind": "decision",
+      "ref": "015-fixture-purpose-and-dedup"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 race-condition investigation"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Effect: dumb-agent automerge workflow's gh pr merge --auto now waits until PR is rebased AND its CI re-passes. If main tightens a check",
+    "all queued PRs must rebase + repass — closing the race window that produced cycle-30 noise."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
