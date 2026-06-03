@@ -1,0 +1,33 @@
+{
+  "id": "000-fixture-positive-governance-minimal-areas",
+  "title": "Positive fixture: governance decision with generated artifact",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance"
+    ]
+  },
+  "source": "top_down",
+  "evidence": [
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-positive-governance-minimal-areas.json"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts",
+    "agent-cluster-backend"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": [],
+  "guards": [],
+  "examples": [
+    "A compact accepted governance decision fixture with explicit generated_artifacts content."
+  ],
+  "counterexamples": [],
+  "created_at": "2026-06-03"
+}
