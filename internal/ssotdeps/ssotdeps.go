@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/agentguard"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
@@ -329,6 +330,68 @@ func CrossCheck(m *Map, cm *conceptmap.Map) []error {
 }
 
 var cidRefRe = regexp.MustCompile(`C-[0-9]{3}`)
+
+// VerifyWorkflowToolCoverage enforces that every tool referenced from a
+// GitHub Actions workflow as `./bin/<name>` is registered as an
+// ssot_artifact in the dep map. Decision 033 introduced this after an
+// audit found 6 CI-bound tools (agentguard, conceptmap, decision,
+// irdrift, secretscan, ssotdeps) on disk and in workflow run steps but
+// missing from the dep map's catalog — invisible to D031/D032 audits
+// and to the dep map's "what tools belong to contracts" invariant.
+//
+// workflowsDir is typically root/.github/workflows. Returns one error
+// per uncovered ./bin/<name> reference; empty slice means OK.
+func VerifyWorkflowToolCoverage(m *Map, workflowsDir string) []error {
+	if m == nil {
+		return nil
+	}
+	registered := map[string]bool{}
+	for _, a := range m.SsotArtifacts {
+		if strings.HasPrefix(filepath.ToSlash(a.Path), "tools/") && strings.HasSuffix(a.Path, "/main.go") {
+			name := strings.TrimSuffix(strings.TrimPrefix(filepath.ToSlash(a.Path), "tools/"), "/main.go")
+			registered[name] = true
+		}
+	}
+	entries, err := os.ReadDir(workflowsDir)
+	if err != nil {
+		return nil // no workflows dir to check; not an error in this context
+	}
+	// The preceding character must NOT be `.` so we don't match `../bin/x`
+	// as `./bin/x`. The capture group is the tool name.
+	binRe := regexp.MustCompile(`(?:^|[^.])\./bin/([a-z][a-z0-9-]*)\b`)
+	type ref struct {
+		tool     string
+		workflow string
+	}
+	var refs []ref
+	seen := map[ref]bool{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yml") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(workflowsDir, e.Name()))
+		if err != nil {
+			continue
+		}
+		for _, match := range binRe.FindAllStringSubmatch(string(data), -1) {
+			r := ref{tool: match[1], workflow: e.Name()}
+			if !seen[r] {
+				seen[r] = true
+				refs = append(refs, r)
+			}
+		}
+	}
+	var errs []error
+	for _, r := range refs {
+		if !registered[r.tool] {
+			errs = append(errs, fmt.Errorf(
+				"workflow %s references ./bin/%s but tools/%s/main.go is not registered as an ssot_artifact in ssot-dependency-map.riido.json (D033). Add `{ \"id\": \"%s-tool\", \"kind\": \"verifier\", \"path\": \"tools/%s/main.go\", \"schema\": null, \"owned_by\": \"agent-cluster-contracts\" }`",
+				r.workflow, r.tool, r.tool, r.tool, r.tool,
+			))
+		}
+	}
+	return errs
+}
 
 // VerifyForbiddenSymmetry enforces C-016 (D031) executably: for every
 // SSOT artifact in the dep map that declares both a data path and a
