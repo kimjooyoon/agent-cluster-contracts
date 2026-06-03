@@ -1,0 +1,26 @@
+{
+  "id": "999-fixture-positive-missing-scope",
+  "title": "Fixture missing scope",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "source": "top_down",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "evidence": [
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-pass-missing-scope.json"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": [],
+  "guards": [],
+  "examples": [
+    "Decision fixture missing scope should pass validation."
+  ],
+  "counterexamples": [],
+  "created_at": "2026-06-03"
+}
