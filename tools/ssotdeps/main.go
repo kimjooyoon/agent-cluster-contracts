@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/agentguard"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/findroot"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/ssotdeps"
@@ -128,14 +129,26 @@ func cmdCrossCheck(args []string) {
 	if err != nil {
 		die(err)
 	}
+	roles, rolesErr := agentguard.Load(root)
 	errs := ssotdeps.CrossCheck(m, cm)
+	// D032: C-016 forbidden_paths symmetry. Skip if roles failed to load —
+	// agentguard validate will surface that separately.
+	pairsChecked := 0
+	if rolesErr == nil {
+		for _, a := range m.SsotArtifacts {
+			if a.Schema != nil && *a.Schema != "" {
+				pairsChecked++
+			}
+		}
+		errs = append(errs, ssotdeps.VerifyForbiddenSymmetry(m, roles)...)
+	}
 	if *asJSON {
 		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": len(errs) == 0, "errors": errMsgs(errs)})
 	} else {
 		if len(errs) == 0 {
-			fmt.Printf("ssotdeps cross-check: OK (%d pending entries, none reference implemented constraints)\n", len(m.Pending))
+			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths)\n", len(m.Pending), pairsChecked)
 		} else {
-			fmt.Fprintf(os.Stderr, "ssotdeps cross-check: %d stale reference(s)\n", len(errs))
+			fmt.Fprintf(os.Stderr, "ssotdeps cross-check: %d violation(s)\n", len(errs))
 			for _, e := range errs {
 				fmt.Fprintln(os.Stderr, "  -", e)
 			}

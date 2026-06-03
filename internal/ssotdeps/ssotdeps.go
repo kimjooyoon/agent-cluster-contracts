@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/agentguard"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/jsonutil"
 )
@@ -328,6 +329,58 @@ func CrossCheck(m *Map, cm *conceptmap.Map) []error {
 }
 
 var cidRefRe = regexp.MustCompile(`C-[0-9]{3}`)
+
+// VerifyForbiddenSymmetry enforces C-016 (D031) executably: for every
+// SSOT artifact in the dep map that declares both a data path and a
+// non-empty schema path, BOTH must be covered by the dumb-agent role's
+// forbidden_paths globs in agent-roles.riido.json. Asymmetry — one
+// half covered, the other implicit — is rejected.
+//
+// Decision 032 introduced this check. The C-016 rule was prose only
+// until D032; the next time someone added an SSOT and forgot the
+// schema (or vice versa), nothing automatic would have caught it.
+//
+// Returns one error per asymmetric pair; empty slice means OK.
+func VerifyForbiddenSymmetry(m *Map, roles *agentguard.Roles) []error {
+	if m == nil || roles == nil {
+		return nil
+	}
+	var dumb *agentguard.Role
+	for i, r := range roles.Roles {
+		if r.ID == "dumb-agent" {
+			dumb = &roles.Roles[i]
+			_ = r
+			break
+		}
+	}
+	if dumb == nil {
+		return []error{fmt.Errorf("agent-roles: no role with id=dumb-agent (cannot enforce C-016)")}
+	}
+	var errs []error
+	for _, a := range m.SsotArtifacts {
+		if a.Schema == nil || *a.Schema == "" {
+			continue
+		}
+		dataPat, dataCovered := agentguard.MatchAny(a.Path, dumb.ForbiddenPaths)
+		schemaPat, schemaCovered := agentguard.MatchAny(*a.Schema, dumb.ForbiddenPaths)
+		if dataCovered != schemaCovered {
+			covered := "data"
+			missing := "schema"
+			missingPath := *a.Schema
+			pat := dataPat
+			if schemaCovered {
+				covered, missing = "schema", "data"
+				missingPath = a.Path
+				pat = schemaPat
+			}
+			errs = append(errs, fmt.Errorf(
+				"C-016 asymmetry: ssot_artifact %q has its %s covered by dumb-agent forbidden_paths pattern %q but the %s file %q is NOT covered. Either add an explicit entry for %s in agent-roles.riido.json, or add a broader glob, so both halves are guarded together",
+				a.ID, covered, pat, missing, missingPath, missingPath,
+			))
+		}
+	}
+	return errs
+}
 
 // siblingRoot maps "agent-cluster-backend" → "<parent-of-root>/backend" and
 // "agent-cluster-frontend" → "<parent-of-root>/frontend". The local checkout

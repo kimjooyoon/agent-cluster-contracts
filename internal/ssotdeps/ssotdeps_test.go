@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/agentguard"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 )
 
@@ -138,6 +139,116 @@ func TestCrossCheckTolerantOfNilInputs(t *testing.T) {
 	}
 	if errs := CrossCheck(nil, &conceptmap.Map{}); len(errs) != 0 {
 		t.Errorf("nil dep map: want 0 errors, got %v", errs)
+	}
+}
+
+// D032 — VerifyForbiddenSymmetry: every SSOT artifact with a schema must
+// have BOTH data and schema covered by dumb-agent forbidden_paths.
+
+func ptr(s string) *string { return &s }
+
+func TestVerifyForbiddenSymmetryAllPaired(t *testing.T) {
+	// Both halves explicitly listed → OK.
+	m := &Map{
+		SsotArtifacts: []SsotArtifact{
+			{ID: "x", Path: "x.json", Schema: ptr("x.schema.json")},
+		},
+	}
+	roles := &agentguard.Roles{Roles: []agentguard.Role{
+		{ID: "dumb-agent", ForbiddenPaths: []string{"x.json", "x.schema.json"}},
+	}}
+	if errs := VerifyForbiddenSymmetry(m, roles); len(errs) != 0 {
+		t.Errorf("expected 0 errors, got %v", errs)
+	}
+}
+
+func TestVerifyForbiddenSymmetryFlagsDataMissing(t *testing.T) {
+	// Schema covered via glob, data not covered → asymmetry.
+	m := &Map{
+		SsotArtifacts: []SsotArtifact{
+			{ID: "ir-x", Path: "ir/domain/x.ir.json", Schema: ptr("ir/schema/ir.schema.json")},
+		},
+	}
+	roles := &agentguard.Roles{Roles: []agentguard.Role{
+		{ID: "dumb-agent", ForbiddenPaths: []string{"ir/schema/**"}},
+	}}
+	errs := VerifyForbiddenSymmetry(m, roles)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 asymmetry, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "ir-x") || !strings.Contains(errs[0].Error(), "data file") {
+		t.Errorf("expected error mentioning ir-x and the missing data file, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyForbiddenSymmetryFlagsSchemaMissing(t *testing.T) {
+	// Data covered, schema not.
+	m := &Map{
+		SsotArtifacts: []SsotArtifact{
+			{ID: "agent-roles", Path: "agent-roles.riido.json", Schema: ptr("agent-roles.schema.json")},
+		},
+	}
+	roles := &agentguard.Roles{Roles: []agentguard.Role{
+		{ID: "dumb-agent", ForbiddenPaths: []string{"agent-roles.riido.json"}},
+	}}
+	errs := VerifyForbiddenSymmetry(m, roles)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 asymmetry, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "agent-roles") || !strings.Contains(errs[0].Error(), "schema file") {
+		t.Errorf("expected error mentioning agent-roles and the missing schema, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyForbiddenSymmetryBothUncoveredIsOK(t *testing.T) {
+	// Both halves uncovered (neither in forbidden_paths) — not a C-016
+	// violation; C-016 only fires when one is covered and the other isn't.
+	m := &Map{
+		SsotArtifacts: []SsotArtifact{
+			{ID: "research", Path: "docs/research/source-ledger.riido.json", Schema: ptr("docs/research/schema.json")},
+		},
+	}
+	roles := &agentguard.Roles{Roles: []agentguard.Role{
+		{ID: "dumb-agent", ForbiddenPaths: []string{"tools/**"}},
+	}}
+	if errs := VerifyForbiddenSymmetry(m, roles); len(errs) != 0 {
+		t.Errorf("both-uncovered should be OK (not in scope of C-016), got %v", errs)
+	}
+}
+
+func TestVerifyForbiddenSymmetryArtifactsWithoutSchema(t *testing.T) {
+	// Artifacts without a schema field are out of scope.
+	m := &Map{
+		SsotArtifacts: []SsotArtifact{
+			{ID: "doc", Path: "docs/some.md", Schema: nil},
+			{ID: "doc2", Path: "docs/other.md", Schema: ptr("")},
+		},
+	}
+	roles := &agentguard.Roles{Roles: []agentguard.Role{
+		{ID: "dumb-agent", ForbiddenPaths: []string{"docs/some.md"}},
+	}}
+	if errs := VerifyForbiddenSymmetry(m, roles); len(errs) != 0 {
+		t.Errorf("schemaless artifacts are out of scope, got %v", errs)
+	}
+}
+
+func TestVerifyForbiddenSymmetryMissingDumbAgentRole(t *testing.T) {
+	m := &Map{}
+	roles := &agentguard.Roles{Roles: []agentguard.Role{
+		{ID: "designer"},
+	}}
+	errs := VerifyForbiddenSymmetry(m, roles)
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "dumb-agent") {
+		t.Errorf("expected one error about missing dumb-agent role, got %v", errs)
+	}
+}
+
+func TestVerifyForbiddenSymmetryNilTolerant(t *testing.T) {
+	if errs := VerifyForbiddenSymmetry(nil, nil); len(errs) != 0 {
+		t.Errorf("nil/nil: want empty, got %v", errs)
+	}
+	if errs := VerifyForbiddenSymmetry(&Map{}, nil); len(errs) != 0 {
+		t.Errorf("map/nil: want empty, got %v", errs)
 	}
 }
 

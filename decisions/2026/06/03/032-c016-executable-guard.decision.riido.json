@@ -1,0 +1,70 @@
+{
+  "id": "032-c016-executable-guard",
+  "title": "Executable C-016 guard - ssotdeps cross-check verifies data+schema forbidden-paths symmetry",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Post-D031 audit (~1 day later) found 3 IR domain files (ir/domain/work-item.ir.json + work-item-created + list-work-items) had schemas covered via ir/schema/** glob but data files NOT in dumb-agent forbidden_paths. C-016 is prose only — nothing automated checked the symmetry, so the gap was silent. Exactly the failure mode C-016 was meant to prevent for future SSOT additions"
+    },
+    {
+      "kind": "decision",
+      "ref": "031-forbid-ssot-schemas - established C-016 in prose; D032 makes it executable"
+    },
+    {
+      "kind": "decision",
+      "ref": "022-ssotdeps-cross-check - introduced the cross-check subcommand; D032 extends it with a second cross-document rule"
+    },
+    {
+      "kind": "decision",
+      "ref": "025-doc-freshness-guard - same executable-pattern as docfresh: turn a recurring SSOT-mirror failure mode into a CI gate so the round-trip cost drops to 0"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/ssotdeps.VerifyForbiddenSymmetry — iterates ssot_artifacts with non-empty schema, asserts both path and schema are covered by dumb-agent forbidden_paths globs (reuses internal/agentguard.MatchAny). Wired into ssotdeps cross-check CLI which already runs in contracts.yml.",
+      "status": "implemented"
+    },
+    {
+      "kind": "go-tool",
+      "ref": "internal/agentguard.MatchAny - exported (was lowercase matchAny); the function ssotdeps reuses to glob-match paths against patterns",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "agent-roles.riido.json - dumb-agent forbidden_paths now includes ir/domain/** (paired with the existing ir/schema/**) so the IR pair is symmetrically covered",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/ssotdeps/ssotdeps_test.go TestVerifyForbiddenSymmetryAllPaired + TestVerifyForbiddenSymmetryFlagsDataMissing + TestVerifyForbiddenSymmetryFlagsSchemaMissing + TestVerifyForbiddenSymmetryBothUncoveredIsOK + TestVerifyForbiddenSymmetryArtifactsWithoutSchema + TestVerifyForbiddenSymmetryMissingDumbAgentRole + TestVerifyForbiddenSymmetryNilTolerant (7 cases)",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-016 - rule updated to describe both the prose rule and its executable enforcement",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Pre-D032: simulated removal of ir/domain/** from dumb-agent forbidden_paths -> ssotdeps cross-check reports 3 C-016 asymmetry violations (one per IR doc).",
+    "Post-D032 with ir/domain/** in place: ssotdeps cross-check passes with 'OK (1 pending entries clean against concept-map; 7 (data,schema) pairs symmetric against dumb-agent forbidden_paths)'.",
+    "Future SSOT addition path: when adding a new ssot_artifact with schema, the dep map declares it AND agent-roles.riido.json must register both halves; otherwise contracts CI fails before merge."
+  ],
+  "counterexamples": [
+    "Both halves uncovered is acceptable: C-016 + D032 only fire when one half is in forbidden_paths and the other isn't. An SSOT with no expected dumb-agent interaction can stay unprotected (designer review is the only safety net) without tripping the rule.",
+    "ssot_artifacts whose schema field is null or empty string are out of scope (no schema to pair with).",
+    "The check uses agentguard.MatchAny which handles ** and * globs the same way the runtime check does — no divergence between 'what the guard sees' and 'what agentguard actually enforces at PR time'."
+  ],
+  "created_at": "2026-06-03"
+}
