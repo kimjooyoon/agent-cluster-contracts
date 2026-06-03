@@ -1,8 +1,9 @@
 {
-  "fixture_type": "decision",
-  "verifier": "work-item ir validation",
+  "fixture_type": "ir-aggregate",
+  "verifier": "ir-aggregate validate",
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "work item invalid missing required"
+  "purpose": "ir-aggregate with invalid source.sha256 \u2014 validator rejects; despite filename, the data does not actually have a missing required field (TODO follow-up)",
+  "expected_error_contains": "source.sha256"
 }

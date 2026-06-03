@@ -1,0 +1,45 @@
+{
+  "id": "027-work-item-fixture-meta-correctness",
+  "title": "Re-type 11 work-item fixtures from decision to ir-aggregate; add honest expected_error_contains",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "11 fixtures under fixtures/negative/work-item/ declared fixture_type=decision since pre-D007 (when ir-aggregate support didn't exist) — backlog item #3. After D007 added ir-aggregate validator path the meta was never updated; fixtures were passing for the wrong reason (decision validator rejecting them as bad-decision instead of IR schema rejecting them as bad-IR)"
+    },
+    {
+      "kind": "decision",
+      "ref": "007-agent-roles-glob-fix-and-ir-schema-and-ir-fixture-types — added ir-aggregate/ir-event/query fixture types; never back-typed the existing 11 work-item fixtures, which is what D027 fixes"
+    },
+    {
+      "kind": "decision",
+      "ref": "026-stricter-noise-markers — introduced isDecisionFixturePath path-scoping precisely because these mis-typed work-item fixtures would otherwise double-trip the id-whitelist rule. D027 makes the workaround unnecessary going forward (path-scoping remains as defensive backup)"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "test",
+      "ref": "probe fixtures — after D027, each work-item meta has fixture_type=ir-aggregate so the ir-aggregate validator runs; expected_error_contains is set to the validator's actual error substring, so the fixture would fail-the-fail-check if the validator stopped catching that error",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "work-item-invalid-name-type.json — data has \"name\": 42 (number, not string); validator parse error is 'cannot unmarshal number into Go struct field IRDoc.name of type string' — substring match.",
+    "work-item-invalid-slots-type.json — data has \"slots\": {...} (object, not array); validator parse error matches.",
+    "work-item-invalid-duplicate-slot-name.json — data has invalid 47-char sha; validator rejects on source.sha256 first, masking the duplicate-name issue. expected_error_contains=source.sha256 reflects this honestly; purpose discloses the TODO for a follow-up data-fix."
+  ],
+  "counterexamples": [
+    "Editing a work-item fixture's data file to fix the masking issue is OUT OF SCOPE for D027 — D027 is meta-only, no data changes. The 6 sha-masked fixtures retain their misleading filenames pending a separate decision (call it D028 candidate: 'fix work-item fixture data so they test what their filenames imply').",
+    "isDecisionFixturePath in probe.go (D026) becomes defensively redundant after D027 since these fixtures no longer claim fixture_type=decision; keeping the path-scoping anyway because the rule is about file location (semantic match), not declared type."
+  ],
+  "created_at": "2026-06-03"
+}

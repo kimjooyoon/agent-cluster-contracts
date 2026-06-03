@@ -1,8 +1,9 @@
 {
-  "fixture_type": "decision",
-  "verifier": "decision validate",
+  "fixture_type": "ir-aggregate",
+  "verifier": "ir-aggregate validate",
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "work item invalid source type not object"
+  "purpose": "ir-aggregate with source field as JSON string instead of object \u2014 JSON parse rejects at unmarshal time",
+  "expected_error_contains": "cannot unmarshal string into Go struct field IRDoc.source of type codegen.Source"
 }

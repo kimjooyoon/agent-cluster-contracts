@@ -1,8 +1,9 @@
 {
-  "fixture_type": "decision",
-  "verifier": "decision validate",
+  "fixture_type": "ir-aggregate",
+  "verifier": "ir-aggregate validate",
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "work item invalid slot missing type"
+  "purpose": "ir-aggregate with invalid sha AND missing slot.type \u2014 validator surfaces both errors; substring picks the missing-type check",
+  "expected_error_contains": "slots[0].type: required"
 }

@@ -1,8 +1,9 @@
 {
-  "fixture_type": "decision",
-  "verifier": "decision validate",
+  "fixture_type": "ir-aggregate",
+  "verifier": "ir-aggregate validate",
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "work item invalid slots type"
+  "purpose": "ir-aggregate with slots field as JSON object instead of array \u2014 JSON parse rejects at unmarshal time",
+  "expected_error_contains": "cannot unmarshal object into Go struct field IRDoc.slots of type []codegen.Slot"
 }
