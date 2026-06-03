@@ -1,5 +1,5 @@
 {
-  "version": "0.19.0",
+  "version": "0.20.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -403,7 +403,7 @@
     },
     {
       "id": "C-016",
-      "rule": "Every SSOT artifact whose data file is in dumb-agent forbidden_paths MUST have its corresponding schema file also in forbidden_paths. Schemas are more fundamental than data — a relaxed schema silently weakens all downstream validation. Pairs: (ssot-dependency-map.riido.json, ssot-dependency-map.schema.json), (concept-map/concept-map.riido.json, concept-map/schema.riido.json), (agent-roles.riido.json, agent-roles.schema.json), (purpose-banlist.riido.json, purpose-banlist.schema.json).",
+      "rule": "Every SSOT artifact in ssot-dependency-map.riido.json whose `schema` field is non-empty MUST have BOTH `path` and `schema` covered by the dumb-agent role's forbidden_paths globs in agent-roles.riido.json (D031 + D032). Asymmetry — one half covered, the other implicit — is rejected by ssotdeps cross-check (D032). Both-uncovered is acceptable (the rule fires only when one is covered and the other isn't). Pairs in scope today: ssot-dependency-map.riido.json + ssot-dependency-map.schema.json, concept-map/concept-map.riido.json + concept-map/schema.riido.json, agent-roles.riido.json + agent-roles.schema.json, purpose-banlist.riido.json + purpose-banlist.schema.json, plus the three IR docs (work-item, work-item-created, list-work-items) which share ir/schema/ir.schema.json and are covered by the `ir/domain/**` + `ir/schema/**` globs added in D032.",
       "rationale": "Asymmetry observed pre-D031: purpose-banlist had the (data, schema) pair correctly forbidden but the other three SSOTs only forbade the data file, not the schema. dumb-agent allowed_paths is narrow enough that the gap was theoretical, but explicit symmetry is cheap insurance and serves as a discoverable convention for future SSOT additions.",
       "examples": [
         "Adding a new SSOT artifact requires forbidding BOTH the data file and the schema file in dumb-agent forbidden_paths. D031 added agent-roles.schema.json, concept-map/schema.riido.json, ssot-dependency-map.schema.json to bring the existing four into symmetry.",
@@ -413,8 +413,8 @@
         "ir/schema/ir.schema.json is covered by the broader `ir/schema/**` glob; the data IR docs live under ir/domain/ which is NOT in forbidden_paths (currently no IR mutations are forbidden because dumb-agent has access only via ir/candidates/, not ir/domain/).",
         "Adding a sibling SSOT data file without a corresponding schema file (e.g. a configuration registry) is fine — the rule only applies when both data and schema exist."
       ],
-      "guard_candidate": { "tool": "internal/agentguard.Check — already enforces forbidden_paths; D031 just adds the missing schema entries to agent-roles.riido.json so they're caught. Test TestD031ForbidsSSOTSchemasSymmetrically asserts every pair is enforced", "status": "implemented" },
-      "decision": "031-forbid-ssot-schemas"
+      "guard_candidate": { "tool": "internal/agentguard.Check (D031) + internal/ssotdeps.VerifyForbiddenSymmetry (D032) — D031 added the missing schema entries; D032 makes C-016 executable so any future SSOT addition with mismatched (data, schema) forbidden_paths coverage fails ssotdeps cross-check in CI", "status": "implemented" },
+      "decision": "032-c016-executable-guard"
     }
   ]
 }

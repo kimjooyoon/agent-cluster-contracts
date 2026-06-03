@@ -346,6 +346,7 @@ tools/**
 decisions/**
 dsl/**
 ir/schema/**
+ir/domain/**
 ssot-dependency-map.riido.json
 ssot-dependency-map.schema.json
 concept-map/concept-map.riido.json
@@ -356,10 +357,13 @@ purpose-banlist.riido.json
 purpose-banlist.schema.json
 ```
 
-Every SSOT data file is paired with its schema file in this list (D031,
-C-016). Schemas are more fundamental than data — a weakened schema
-silently relaxes every downstream validation. The pairing convention
-is enforced symmetrically; new SSOT additions must register both.
+Every SSOT data file is paired with its schema file in this list (D031 +
+D032, C-016). Schemas are more fundamental than data — a weakened
+schema silently relaxes every downstream validation. The pairing
+convention is **executable**: `ssotdeps cross-check` (D032) walks every
+`ssot_artifact` in the dep map and rejects any pair where one half is
+covered by these globs and the other is not. Adding a new SSOT artifact
+without registering both halves fails CI before merge.
 
 Anything not in allowed_paths and not in forbidden_paths is also rejected
 (treated as not-allowed). When in doubt, write a `reports/guard-candidates/`

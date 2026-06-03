@@ -34,6 +34,7 @@
         "decisions/**",
         "dsl/**",
         "ir/schema/**",
+        "ir/domain/**",
         "ssot-dependency-map.riido.json",
         "ssot-dependency-map.schema.json",
         "concept-map/concept-map.riido.json",

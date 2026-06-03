@@ -457,6 +457,15 @@ func patternPrefix(pattern string) string {
 
 // matchAny returns the first pattern that matches p, and whether any matched.
 func matchAny(p string, patterns []string) (string, bool) {
+	return MatchAny(p, patterns)
+}
+
+// MatchAny returns the first pattern in patterns that matches p (via
+// MatchGlob), and true; or "", false if no pattern matches. Exported
+// for reuse by ssotdeps cross-check (D032) which needs to verify
+// dumb-agent forbidden_paths covers every SSOT data+schema pair
+// without re-implementing the matcher.
+func MatchAny(p string, patterns []string) (string, bool) {
 	for _, pat := range patterns {
 		if matchGlob(pat, p) {
 			return pat, true
