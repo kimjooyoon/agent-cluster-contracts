@@ -59,6 +59,14 @@ This runs every contracts-local verifier (`decision validate`, `ssotdeps
 verify --mode local`, `conceptmap verify`, `secretscan`, `irdrift`) and
 returns one of:
 
+> Note: contracts CI also runs `ssotdeps cross-check` (D022), which
+> fails if the dep map's `pending[]` array still mentions a constraint
+> id that concept-map already marks as `implemented`. You don't need
+> to run this locally — it's enforced at PR time — but if you touch
+> `ssot-dependency-map.riido.json` and want to be sure, run
+> `./bin/ssotdeps cross-check`.
+
+
 - `"status": "candidate_allowed"` → baseline is green. You may create
   **exactly one small candidate** (≤ 5 files; see role config). Proceed to
   Step 3.
@@ -92,7 +100,7 @@ For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
     "expected_error_category": "schema_violation" | "validation_error" | "..." (optional),
     "expected_error_contains": "substring the error must contain" (optional, when expected=fail),
     "from_role": "dumb-agent",
-    "purpose": "what THIS fixture proves — must be unique and meaningful (D015, D017, D018, D020)"
+    "purpose": "what THIS fixture proves — must be unique and meaningful (D015, D017, D018, D020, D023)"
   }
   ```
 - Supported `fixture_type` values (each extension was its own decision —
@@ -109,25 +117,47 @@ For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
   `expected: "fail"`; the actual validation error must contain
   `expected_error_contains` when set.
 
-#### Purpose rules (D015 + D017 + D018 + D020)
+#### Purpose rules (D015 + D017 + D018 + D020 + D023)
 
 `meta.purpose` is REQUIRED and is the field that decides whether your
-fixture adds coverage or is duplicate noise. Three layers of enforcement:
+fixture adds coverage or is duplicate noise. Four layers of enforcement,
+applied in order; the first one that rejects wins:
 
 1. **Non-empty (D015)**: `purpose` must be a non-empty, non-whitespace
    string. Missing purpose → fixture rejected.
-2. **Unique after normalization (D015 + D017)**: probe fixtures compares
+2. **Structural noise marker (D023)**: rejected on FIRST occurrence (no
+   banlist seeding required) when the **raw** purpose contains a
+   `cycle-N` token (regex `(?i)\bcycle[\s-]\d+\b`). Legitimate purposes
+   describe the rule being exercised, not the iteration that produced
+   the fixture. Also rejects decision fixtures whose data `id` starts
+   with `999-` (reserved do-not-use range — see "Fixture id convention"
+   below).
+3. **Unique after normalization (D015 + D017)**: probe fixtures compares
    `NormalizePurpose(purpose)`, not the raw string. Normalization strips
    `(<digits>)` (Unix timestamps in parens), `cycle N` tokens, bare 6+-digit
    numbers, then lowercases. Two fixtures whose normalized purposes are
    equal are duplicates within `(category, fixture_type)`, even if their
    raw strings differ only by timestamp/cycle suffix. **Appending a
    timestamp to fake uniqueness does NOT work.**
-3. **Not in banlist (D018 + D020 + future)**: `purpose-banlist.riido.json`
+4. **Not in banlist (D018 + D020 + future)**: `purpose-banlist.riido.json`
    holds known noise templates. Any fixture whose normalized purpose
    matches a banlist entry is rejected with a citation of the seeding
    decision — even if it's the only such fixture in the set. **Deleting
    the original does NOT reset the lockout.**
+
+##### Fixture id convention (D023)
+
+Two id ranges are reserved inside `fixtures/`:
+
+- `000-fixture-*` — **use this** for canonical synthetic test fixtures
+  (e.g. `000-fixture-positive-minimal`, `000-fixture-negative-missing-owner`).
+- `999-*` — **never use** for any new decision fixture data file. The
+  noise-marker check rejects this prefix on sight to break a recurring
+  template-generator pattern.
+
+Real decision records (under `decisions/`) keep using the sequential
+`NNN-slug` numbering — only fixture data files are subject to the
+000-/999- split.
 
 To make `purpose` a meaningful coverage claim, write what the fixture's
 content distinguishes from existing fixtures. Examples of GOOD purposes:
@@ -142,8 +172,13 @@ Examples of BAD purposes (will be rejected):
   (banned, seeded by D018; template restatement of "verifier passes")
 - `"Validate a unique accepted decision record in platform governance scope"`
   (banned, seeded by D020; wording variation of the D018 template)
-- `"Cycle 14 positive fixture"` (normalizes to "positive fixture";
-  matches any other cycle's normalized purpose)
+- `"Verify accepted decision fixture remains valid for top-down
+  governance scope in cycle 40"` (rejected by D023 noise marker —
+  raw text contains `cycle 40`; rephrasing the wording does NOT help,
+  the rule fires on the literal `cycle-N` token)
+- `"Cycle 14 positive fixture"` (rejected by D023 noise marker on the
+  raw `Cycle 14` token; would also normalize to "positive fixture" and
+  trip layer 3 if the noise marker were absent)
 - `"Foo bar baz (1780485823)"` (timestamp stripped → "foo bar baz",
   matches every other fixture using the same template)
 
