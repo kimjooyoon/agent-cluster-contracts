@@ -175,32 +175,28 @@
       "consumer_repo": "agent-cluster-backend",
       "consumer_path": "internal/contracts/work_item.go",
       "via": "gen-go-client emits this file from the IR; backend imports the package",
-      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
     },
     {
       "ssot": "ir-work-item-created",
       "consumer_repo": "agent-cluster-backend",
       "consumer_path": "internal/contracts/work_item_created.go",
       "via": "gen-go-client emits this file from the IR; backend emits this type on the /events SSE endpoint",
-      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
     },
     {
       "ssot": "ir-work-item",
       "consumer_repo": "agent-cluster-frontend",
       "consumer_path": "lib/contracts_client/work_item.dart",
       "via": "gen-dart-client emits this file from the IR; Flutter pages import it",
-      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
     },
     {
       "ssot": "ir-work-item-created",
       "consumer_repo": "agent-cluster-frontend",
       "consumer_path": "lib/contracts_client/work_item_created.dart",
       "via": "gen-dart-client emits this file from the IR; reserved for the SSE consumer slice",
-      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
     }
   ],
   "ci_gates": [
