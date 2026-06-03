@@ -9,7 +9,6 @@
     }
   ],
   "source": {
-    "dsl_file": "dsl/domain/work-item.lisp",
-    "sha256": "85d...invalid-hash"
+    "sha256": "85dac41ffb84398e04b9de7c7237bd83afd8195883f2bf51342bbbee8d11b91f"
   }
 }

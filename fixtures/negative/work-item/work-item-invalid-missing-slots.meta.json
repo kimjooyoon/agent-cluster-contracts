@@ -4,6 +4,6 @@
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "ir-aggregate with empty source.sha256 \u2014 validator rejects; despite filename, the data does contain a slot (TODO follow-up: fix data to actually miss slots)",
-  "expected_error_contains": "source.sha256"
+  "purpose": "ir-aggregate with empty slots:[] \u2014 validator rejects with 'kind=aggregate requires at least one slot'",
+  "expected_error_contains": "requires at least one slot"
 }

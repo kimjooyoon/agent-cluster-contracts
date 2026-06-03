@@ -4,6 +4,6 @@
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "ir-aggregate with invalid source.sha256 (47 chars instead of 64) \u2014 validator stops at sha check; the duplicate-slot-name shape in the data is not actually exercised (TODO follow-up: fix sha so duplicate-slot check fires)",
-  "expected_error_contains": "source.sha256"
+  "purpose": "ir-aggregate with two slots named 'id' \u2014 validator rejects with duplicate-slot-name error (D029 rule)",
+  "expected_error_contains": "duplicate of slots[0].name"
 }

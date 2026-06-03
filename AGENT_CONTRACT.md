@@ -117,6 +117,9 @@ For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
   - `ir-aggregate` / `ir-event` / `query` — validates against
     `ir/schema/ir.schema.json` AND the kind must match the meta type
     (a `kind: query` doc under `fixture_type: ir-aggregate` fails).
+    Aggregate/event slot names must be globally unique within the
+    document (D029, C-014); the first collision is reported as
+    `slots[i].name "<n>": duplicate of slots[j].name`.
 - Adding a new `fixture_type` requires its own decision; do not edit
   the verifier yourself.
 - positive fixture under `fixtures/positive/` must declare

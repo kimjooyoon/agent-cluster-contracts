@@ -186,6 +186,57 @@ func TestFixturesIRAggregateNegativeMissingSlotsFails(t *testing.T) {
 	}
 }
 
+// D029 — duplicate slot-name detection on aggregate/event kinds.
+
+func TestFixturesIRAggregateRejectsDuplicateSlotName(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/negative/work-item/dup.json"),
+		`{"kind":"aggregate","name":"x","slots":[`+
+			`{"name":"id","required":true,"type":"string"},`+
+			`{"name":"id","required":true,"type":"string"}`+
+			`],"source":{"dsl_file":"dsl/x.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`)
+	write(t, filepath.Join(root, "fixtures/negative/work-item/dup.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"duplicate of slots[0].name","purpose":"ir aggregate with duplicate slot names"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK (duplicate slot rejected as expected): %+v", res.Checks)
+	}
+}
+
+func TestFixturesIRAggregateAcceptsUniqueSlotNames(t *testing.T) {
+	// Sanity: a valid aggregate with all-unique slot names must still pass.
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/work-item/unique.json"),
+		`{"kind":"aggregate","name":"x","slots":[`+
+			`{"name":"id","required":true,"type":"string"},`+
+			`{"name":"title","required":true,"type":"string"},`+
+			`{"name":"state","required":true,"type":"string"}`+
+			`],"source":{"dsl_file":"dsl/x.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`)
+	write(t, filepath.Join(root, "fixtures/positive/work-item/unique.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"pass","purpose":"ir aggregate with three uniquely-named slots"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK (unique slot names valid): %+v", res.Checks)
+	}
+}
+
+func TestFixturesIRAggregateRejectsTripleDuplicateSlotName(t *testing.T) {
+	// Three slots with the same name → first collision reported (slots[1] vs slots[0]).
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/negative/work-item/triple.json"),
+		`{"kind":"aggregate","name":"x","slots":[`+
+			`{"name":"id","required":true,"type":"string"},`+
+			`{"name":"id","required":true,"type":"string"},`+
+			`{"name":"id","required":true,"type":"string"}`+
+			`],"source":{"dsl_file":"dsl/x.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`)
+	write(t, filepath.Join(root, "fixtures/negative/work-item/triple.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"slots[1].name \"id\": duplicate","purpose":"ir aggregate with triple-duplicate slot names"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK (first collision reported as expected): %+v", res.Checks)
+	}
+}
+
 func TestFixturesIRAggregateKindMismatchFails(t *testing.T) {
 	root := t.TempDir()
 	// Document is a query but meta promises ir-aggregate.
