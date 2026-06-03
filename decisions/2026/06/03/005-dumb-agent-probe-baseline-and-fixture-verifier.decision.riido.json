@@ -1,0 +1,52 @@
+{
+  "id": "005-dumb-agent-probe-baseline-and-fixture-verifier",
+  "title": "Dumb-agent probe loop baseline + fixture verifier (bottom-up from probe-loop reliability failures)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "ci",
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "ci-run",
+      "ref": "dumb-agent 41-violation incident superseded by decision 004"
+    },
+    {
+      "kind": "decision",
+      "ref": "004-agentguard-diagnostics-and-role-realignment"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal for decision 005"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/probe (to be added)"
+    },
+    {
+      "kind": "file",
+      "ref": "tools/probe (to be added)"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "wi-017 through wi-021 (dumb-agent outputs produced under a red baseline before decision 005) are quarantined: NOT merged",
+    "NOT treated as accepted guard gaps. Re-evaluated only after re-running under a green baseline + probe fixtures."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

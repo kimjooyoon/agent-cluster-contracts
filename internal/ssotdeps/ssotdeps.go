@@ -1,8 +1,14 @@
 // Package ssotdeps loads and verifies the SSOT dependency map. It checks that
 // every declared artifact, schema, consumer, and CI workflow actually exists on
-// disk relative to the contracts repo root. Cross-repo paths (paths beginning
-// with ../backend/ or ../frontend/) are checked only when those sibling repos
-// are present.
+// disk relative to the contracts repo root.
+//
+// Verify has two modes:
+//   - ModeFull (default): also checks sibling repos (backend, frontend) when
+//     they are present in the parent directory. Used by smart-agent local dev
+//     and by full cross-repo CI.
+//   - ModeLocal: ignores sibling repos entirely, even if their directories
+//     exist. Used by the dumb-agent probe preflight so its baseline answer is
+//     deterministic regardless of what happens to be in the parent directory.
 package ssotdeps
 
 import (
@@ -74,11 +80,33 @@ func Load(root string) (*Map, error) {
 	return m, nil
 }
 
+// Mode controls how much of the dep map is checked.
+type Mode int
+
+const (
+	// ModeFull verifies everything, including sibling-repo consumer paths and
+	// CI gates in sibling repos when those repos are present locally. This is
+	// the default and what cross-repo CI uses.
+	ModeFull Mode = iota
+	// ModeLocal verifies only contracts-repo-owned artifacts and gates. It
+	// never reads sibling-repo state, even if backend/ or frontend/ are
+	// present. This is what the dumb-agent probe preflight uses so the
+	// baseline answer cannot be polluted by an incomplete sibling checkout.
+	ModeLocal
+)
+
+func (m Mode) String() string {
+	switch m {
+	case ModeLocal:
+		return "local"
+	default:
+		return "full"
+	}
+}
+
 // Verify checks that referenced files exist. Returns one error per failure
-// (empty slice means OK). Cross-repo paths (../backend/..., ../frontend/...) are
-// resolved relative to root and skipped gracefully if the sibling repo is not
-// checked out — so the same dep map works locally and in CI.
-func Verify(root string, m *Map) []error {
+// (empty slice means OK). See Mode for the cross-repo behavior.
+func Verify(root string, m *Map, mode Mode) []error {
 	var errs []error
 	ids := map[string]bool{}
 	for i, a := range m.SsotArtifacts {
@@ -114,7 +142,12 @@ func Verify(root string, m *Map) []error {
 			}
 			continue
 		}
-		// Sibling repo: contracts → ../<repo>/...
+		// Sibling repo. In ModeLocal we never look at siblings — that's the
+		// point of local mode: deterministic baseline regardless of sibling
+		// checkout state.
+		if mode == ModeLocal {
+			continue
+		}
 		sibling := siblingRoot(root, l.ConsumerRepo)
 		if sibling == "" {
 			continue
@@ -139,6 +172,10 @@ func Verify(root string, m *Map) []error {
 		}
 		base := root
 		if g.Repo != "agent-cluster-contracts" {
+			// Skip sibling CI gates entirely in local mode.
+			if mode == ModeLocal {
+				continue
+			}
 			base = siblingRoot(root, g.Repo)
 			if base == "" {
 				continue

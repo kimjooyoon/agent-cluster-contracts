@@ -34,7 +34,18 @@ func main() {
 func cmdVerify(args []string) {
 	fs := flag.NewFlagSet("verify", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "JSON output")
+	modeStr := fs.String("mode", "full", "local | full — local skips sibling-repo checks even when siblings are checked out")
 	fs.Parse(args)
+	var mode ssotdeps.Mode
+	switch *modeStr {
+	case "local":
+		mode = ssotdeps.ModeLocal
+	case "full", "":
+		mode = ssotdeps.ModeFull
+	default:
+		fmt.Fprintln(os.Stderr, "--mode must be local or full")
+		os.Exit(2)
+	}
 	root, err := findroot.FromCWD()
 	if err != nil {
 		die(err)
@@ -43,14 +54,14 @@ func cmdVerify(args []string) {
 	if err != nil {
 		die(err)
 	}
-	errs := ssotdeps.Verify(root, m)
+	errs := ssotdeps.Verify(root, m, mode)
 	if *asJSON {
-		out := map[string]any{"ok": len(errs) == 0, "errors": errMsgs(errs), "root": root}
+		out := map[string]any{"ok": len(errs) == 0, "mode": mode.String(), "errors": errMsgs(errs), "root": root}
 		json.NewEncoder(os.Stdout).Encode(out)
 	} else {
 		if len(errs) == 0 {
-			fmt.Printf("ssotdeps verify: OK (%d artifacts, %d consumption links, %d CI gates)\n",
-				len(m.SsotArtifacts), len(m.ConsumptionLinks), len(m.CIGates))
+			fmt.Printf("ssotdeps verify (mode=%s): OK (%d artifacts, %d consumption links, %d CI gates)\n",
+				mode, len(m.SsotArtifacts), len(m.ConsumptionLinks), len(m.CIGates))
 		} else {
 			for _, e := range errs {
 				fmt.Fprintln(os.Stderr, "FAIL:", e)
@@ -88,7 +99,12 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `ssotdeps — verify the SSOT dependency map
 
 Commands:
-  verify [--json]   Check that every referenced path exists. Exit 1 on failure.
+  verify [--mode local|full] [--json]
+                    Check that every referenced path exists.
+                    --mode full (default) also checks sibling backend/frontend
+                    consumer paths and CI gates when those repos are present.
+                    --mode local skips all sibling-repo checks; use this for
+                    the dumb-agent probe baseline. Exit 1 on failure.
   show              Print the loaded dep map as JSON.`)
 }
 

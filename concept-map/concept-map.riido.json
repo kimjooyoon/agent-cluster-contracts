@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -57,6 +57,30 @@
       "description": "Per-language consumer-side files emitted from IR by tools/gen-go-client and tools/gen-dart-client. Committed into the consumer repo; never edited by hand; drift detected by per-repo CI gates.",
       "examples": ["backend/internal/contracts/work_item.go", "frontend/lib/contracts_client/work_item.dart"],
       "decision": "003-first-vertical-slice"
+    },
+    {
+      "name": "ProbeBaseline",
+      "kind": "process",
+      "owner": "agent-cluster-contracts",
+      "description": "Output of `probe preflight`: the aggregate green/red state of every contracts-local verifier (decision validate, ssotdeps verify --mode local, conceptmap verify, secretscan, irdrift). status=candidate_allowed means the dumb-agent may create one candidate; status=baseline_blocked means stop.",
+      "examples": ["{\"status\":\"candidate_allowed\",\"candidate_allowed\":true,\"next_allowed_action\":\"create-candidate\"}"],
+      "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "name": "EnvironmentBlocker",
+      "kind": "artifact",
+      "owner": "agent-cluster-contracts",
+      "description": "A reports/environment-blockers/<id>.md note describing an environment or setup issue (missing tool, broken baseline, missing sibling artifact). Filed by dumb-agent under a red baseline as the only allowed write. NOT a domain guard gap.",
+      "examples": ["reports/environment-blockers/eb-001-sbcl-missing.md"],
+      "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "name": "Fixture",
+      "kind": "artifact",
+      "owner": "agent-cluster-contracts",
+      "description": "A .json file under fixtures/positive/ or fixtures/negative/ with a .meta.json sidecar declaring fixture_type, expected (pass|fail), and optionally expected_error_contains. Walked by `probe fixtures`. v1 supports fixture_type=decision only.",
+      "examples": ["fixtures/positive/decision/min.json + min.meta.json"],
+      "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
     }
   ],
   "relationships": [
@@ -94,6 +118,20 @@
       "to": "WorkItem",
       "example": "backend/internal/contracts/work_item.go is the Go representation of ir/domain/work-item.ir.json; frontend/lib/contracts_client/work_item.dart is the Dart representation.",
       "decision": "003-first-vertical-slice"
+    },
+    {
+      "from": "ProbeBaseline",
+      "kind": "constrains",
+      "to": "Fixture",
+      "example": "If ProbeBaseline.status is baseline_blocked, no new Fixture (positive, negative, or fuzz) may be created in that PR. Only one EnvironmentBlocker may be filed.",
+      "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "from": "EnvironmentBlocker",
+      "kind": "references",
+      "to": "ProbeBaseline",
+      "example": "Every environment-blocker report cites the probe preflight output that justified filing it.",
+      "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
     }
   ],
   "constraints": [
@@ -153,6 +191,19 @@
       ],
       "guard_candidate": { "tool": "github-action: verify devpattern event per WI in PR", "status": "pending" },
       "decision": "001-initial-agreement"
+    },
+    {
+      "id": "C-005",
+      "rule": "A dumb-agent must not create any Fixture (positive, negative, or fuzz) or domain guard-candidate report when ProbeBaseline.status is baseline_blocked. The only allowed write under a red baseline is at most one EnvironmentBlocker report.",
+      "rationale": "Under a red baseline, validators are already failing on the trunk. A new failing candidate proves nothing about whether a verifier is too loose — it could just be the trunk being broken. Allowing fixture creation in this state produces noise that looks like guard gaps but isn't.",
+      "examples": [
+        "probe preflight returns status=baseline_blocked. Dumb-agent files reports/environment-blockers/eb-001-sbcl-missing.md describing the broken baseline and stops. No fixture changes."
+      ],
+      "counterexamples": [
+        "probe preflight returns status=baseline_blocked. Dumb-agent files a fixtures/negative/work-item/x.json claiming the verifier missed a case — the verifier did not miss anything; the baseline was simply broken."
+      ],
+      "guard_candidate": { "tool": "probe preflight (already enforced for dumb-agent via AGENT_CONTRACT.md; future hook: pre-commit refusing fixture writes when probe preflight is red)", "status": "pending" },
+      "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier"
     }
   ]
 }

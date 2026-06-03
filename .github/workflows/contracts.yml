@@ -58,3 +58,9 @@ jobs:
 
       - name: Regenerate IR from DSL and check for drift
         run: ./bin/irdrift
+
+      - name: Verify fixtures (positive must pass, negative must fail-with-reason)
+        run: ./bin/probe fixtures
+
+      - name: Probe baseline (sanity — should match the steps above)
+        run: ./bin/probe preflight

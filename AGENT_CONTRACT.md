@@ -28,14 +28,20 @@ goes through normal review.
 
 ## Preflight checks (run these BEFORE you open a PR)
 
-Decision 004 added structured diagnostics so weak agents can self-correct. Run
-these locally before pushing — CI runs the same checks but failing in CI is a
-slower feedback loop than failing on your laptop.
+Decisions 004 + 005 added structured diagnostics and a baseline probe so
+weak agents can self-correct and never operate under a broken baseline. Run
+these locally before pushing — CI runs the same checks but failing in CI is
+a slower feedback loop than failing on your laptop.
+
+### Step 0 — build the tools
+
+```sh
+go build -o bin/ ./tools/...
+```
 
 ### Step 1 — read your role
 
 ```sh
-go build -o bin/ ./tools/agentguard
 ./bin/agentguard show --role dumb-agent
 ```
 
@@ -43,7 +49,60 @@ Outputs: allowed_paths, forbidden_paths, max_files_per_pr, auto_merge_paths,
 PR-isolation rules, the decision that introduced the role. **If your planned
 PR doesn't fit these rules, do not even start writing files.**
 
-### Step 2 — dry-run your diff before committing
+### Step 2 — probe the baseline
+
+```sh
+./bin/probe preflight --json
+```
+
+This runs every contracts-local verifier (`decision validate`, `ssotdeps
+verify --mode local`, `conceptmap verify`, `secretscan`, `irdrift`) and
+returns one of:
+
+- `"status": "candidate_allowed"` → baseline is green. You may create
+  **exactly one small candidate** (≤ 5 files; see role config). Proceed to
+  Step 3.
+- `"status": "baseline_blocked"` → baseline is RED. **STOP.** Do not write
+  fixtures, fuzz corpus, IR candidates, or domain guard-candidate notes
+  under a red baseline. You may file **at most one**
+  `reports/environment-blockers/<id>-<slug>.md` describing what
+  `probe preflight` reported and the exact commands you ran. Then stop.
+
+> Never infer a "guard gap" from a red baseline. If validators are already
+> failing on the trunk, a new failing fixture proves nothing about whether
+> a verifier is too loose — it could just be the trunk being broken.
+
+### Step 3 — create your candidate
+
+Make the smallest possible change. One file is best; five is the hard cap.
+
+### Step 4 — verify your fixture(s)
+
+```sh
+./bin/probe fixtures --json
+```
+
+For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
+
+- A `<name>.meta.json` sidecar is required. Schema:
+  ```json
+  {
+    "fixture_type": "decision",
+    "expected": "pass" | "fail",
+    "expected_error_category": "schema_violation" | "validation_error" | "..." (optional),
+    "expected_error_contains": "substring the error must contain" (optional, when expected=fail),
+    "from_role": "dumb-agent"
+  }
+  ```
+- v1 supports `fixture_type: "decision"` only. New types require a new
+  decision before being added; do not edit the verifier yourself.
+- positive fixture under `fixtures/positive/` must declare
+  `expected: "pass"` and must validate.
+- negative fixture under `fixtures/negative/` must declare
+  `expected: "fail"`; the actual validation error must contain
+  `expected_error_contains` when set.
+
+### Step 5 — dry-run your diff
 
 ```sh
 git diff --name-only main > /tmp/changed.txt
@@ -52,29 +111,43 @@ git diff --name-only main > /tmp/changed.txt
 
 If violations exist, the output groups them as:
 
-- **PR-level** (e.g. `PR touches N files, role allows at most 5`) — comes with a
-  split-PR hint.
-- **FORBIDDEN** — paths matching a forbidden_paths pattern. Re-classify or drop
-  these files; never argue with a forbidden hit. The accompanying pattern is
-  printed so you can find it in `agent-roles.riido.json`.
+- **PR-level** (e.g. `PR touches N files, role allows at most 5`) — comes
+  with a split-PR hint.
+- **FORBIDDEN** — paths matching a forbidden_paths pattern. Re-classify
+  or drop these files; never argue with a forbidden hit. The accompanying
+  pattern is printed so you can find it in `agent-roles.riido.json`.
 - **not allowed** — paths matching no allowed_paths pattern. The closest
-  pattern is suggested. If the suggestion includes `would match if prefixed
-  with "X"`, you are passing paths from the wrong base — fix the path or the
-  pipeline (do not edit `agent-roles.riido.json`).
+  pattern is suggested. If the suggestion includes `would match if
+  prefixed with "X"`, you are passing paths from the wrong base — fix
+  the path or the pipeline (do not edit `agent-roles.riido.json`).
 
 If multiple `not allowed` paths share the same missing prefix, agentguard
 emits a single `prefix_drift` hint that says role config and diff producer
-disagree on the path base. **This is a guard-author problem, not a dumb-agent
-problem** — write a `reports/guard-candidates/<id>.md` note describing what
-you observed and stop.
+disagree on the path base. **This is a guard-author problem, not a
+dumb-agent problem** — file a `reports/environment-blockers/<id>.md` note
+describing what you observed and stop.
 
-### Step 3 — machine-readable mode for downstream tools
+### Step 6 — re-probe the baseline
+
+```sh
+./bin/probe preflight
+```
+
+If your candidate change broke the baseline (e.g. you accidentally
+modified an SSOT file you weren't supposed to), `baseline_blocked` will
+fire here. Roll back the offending changes; never push a baseline-red PR.
+
+### Step 7 — machine-readable mode for downstream tools
 
 ```sh
 ./bin/agentguard verify --role dumb-agent --stdin --json < /tmp/changed.txt
+./bin/probe preflight --json
+./bin/probe fixtures --json
 ```
 
-Output schema (stable):
+Stable JSON schemas. Future tooling may parse them.
+
+Agentguard schema:
 
 ```json
 {
@@ -140,6 +213,7 @@ fixtures/negative/**
 fuzz/corpus/**
 ir/candidates/**
 reports/guard-candidates/**
+reports/environment-blockers/**
 ```
 
 ### Forbidden paths (enforced — repo-relative)
@@ -175,17 +249,24 @@ note instead of a file in some other location.
 ### How to think about failure
 
 - Your candidate failed verifier? → Don't "fix" the verifier. Minimize the
-  failing case and submit it as a `reports/guard-candidates/<id>-min.md` so a
-  designer can decide whether the verifier or the candidate is wrong.
+  failing case and submit it as a `reports/guard-candidates/<id>-min.md` so
+  a designer can decide whether the verifier or the candidate is wrong.
+  **But first: confirm `probe preflight` was green BEFORE your change.**
+  If the baseline was already red, a failing candidate proves nothing.
 - The verifier accepted something that "looks weird"? → Don't change the
   verifier. Write a `reports/guard-candidates/<id>.md` describing the
-  unexpected acceptance. A designer will decide whether to tighten.
+  unexpected acceptance. A designer will decide whether to tighten. Again,
+  this only counts if `probe preflight` was green when you started.
+- `probe preflight` returned `baseline_blocked`? → Do NOT file a
+  guard-candidate report. File at most one
+  `reports/environment-blockers/<id>.md` describing the blocker. The
+  failing baseline is an environment problem, not a domain gap.
 - agentguard rejected a path you expected to be allowed? → Run
   `agentguard show --role dumb-agent` and compare. If the role config
   really doesn't allow it, your candidate is in the wrong place — move it
   or drop it. If the role config seems wrong, write a
-  `reports/guard-candidates/<id>.md` describing the discrepancy and stop.
-  **Never edit `agent-roles.riido.json` yourself.**
+  `reports/environment-blockers/<id>.md` describing the discrepancy and
+  stop. **Never edit `agent-roles.riido.json` yourself.**
 
 ### Required PR template (mental)
 

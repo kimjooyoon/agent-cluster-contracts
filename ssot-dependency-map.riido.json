@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -95,6 +95,27 @@
       "schema": null,
       "mirrored_in": ["AGENT_CONTRACT.md"],
       "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "tools-readme",
+      "kind": "doc",
+      "path": "tools/README.md",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "probe-tool",
+      "kind": "verifier",
+      "path": "tools/probe/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "environment-blockers-dir",
+      "kind": "report-area",
+      "path": "reports/environment-blockers/README.md",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
     }
   ],
   "generation_links": [
@@ -171,6 +192,13 @@
       "guard": "dumb-agent-safety.yml workflow"
     },
     {
+      "ssot": "probe-tool",
+      "consumer_repo": "agent-cluster-contracts",
+      "consumer_path": "internal/probe/probe.go",
+      "via": "probe tool composes decision/ssotdeps(local)/conceptmap/secretscan/irdrift for the dumb-agent baseline + walks fixtures/ for the fixture verifier",
+      "guard": "contracts.yml workflow runs both `probe preflight` and `probe fixtures`"
+    },
+    {
       "ssot": "ir-work-item",
       "consumer_repo": "agent-cluster-backend",
       "consumer_path": "internal/contracts/work_item.go",
@@ -212,7 +240,10 @@
         "dsl-work-item",
         "dsl-emitter",
         "ir-work-item",
-        "agent-roles"
+        "agent-roles",
+        "tools-readme",
+        "probe-tool",
+        "environment-blockers-dir"
       ]
     },
     {

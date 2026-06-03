@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "owner": "agent-cluster-contracts",
   "description": "SSOT for agent roles. Each role declares allowed_paths (glob patterns) and forbidden_paths (glob patterns). agentguard verify reads the PR's changed-file list and the declared role, then rejects diffs that touch forbidden paths or contain only-not-allowed paths.\n\nA role's effective rule is: every changed file must match at least one allowed_paths glob, AND must not match any forbidden_paths glob. forbidden_paths win on conflict.\n\nIMPORTANT — path convention: globs are REPO-RELATIVE, not monorepo-relative. The dumb-agent-safety workflow runs inside the contracts repo and feeds agentguard the output of `git diff --name-only` (paths like `fixtures/positive/x.json`, not `contracts/fixtures/positive/x.json`). Decision 004 fixed an earlier monorepo-style miswrite that prevented every dumb-agent PR from passing. If a future role needs to gate paths in backend or frontend, add a separate workflow in that repo.\n\nSee contracts/AGENT_CONTRACT.md for the human-readable mirror.",
   "roles": [
@@ -19,13 +19,14 @@
       "id": "dumb-agent",
       "label": "Contract Fuzzer Agent / IR Mutation Scout",
       "description": "Low-context closed-loop probe. Generates small candidates and lets verifiers decide. Never makes semantic decisions, never modifies accepted contracts, schemas, decisions, verifier code, or CI workflows. Allowed task types: positive fixture, negative fixture, fuzz corpus expansion, manifest normalization, failure minimization (output as a guard-candidate note since reports/min/ is no longer in scope).",
-      "decision": "004-agentguard-diagnostics-and-role-realignment",
+      "decision": "005-dumb-agent-probe-baseline-and-fixture-verifier",
       "allowed_paths": [
         "fixtures/positive/**",
         "fixtures/negative/**",
         "fuzz/corpus/**",
         "ir/candidates/**",
-        "reports/guard-candidates/**"
+        "reports/guard-candidates/**",
+        "reports/environment-blockers/**"
       ],
       "forbidden_paths": [
         "tools/**",
@@ -48,7 +49,8 @@
         "fixtures/positive/**",
         "fixtures/negative/**",
         "fuzz/corpus/**",
-        "reports/guard-candidates/**"
+        "reports/guard-candidates/**",
+        "reports/environment-blockers/**"
       ]
     },
     {
