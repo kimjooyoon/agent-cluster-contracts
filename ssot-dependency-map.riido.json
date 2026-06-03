@@ -266,16 +266,14 @@
       "consumer_repo": "agent-cluster-backend",
       "consumer_path": "internal/contracts/list_work_items.go",
       "via": "gen-go-client emits ListWorkItemsQueryName const + ListWorkItemsResult alias; backend slice/server.go references the const instead of hand-typing the wire identifier",
-      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
     },
     {
       "ssot": "ir-list-work-items",
       "consumer_repo": "agent-cluster-frontend",
       "consumer_path": "lib/contracts_client/list_work_items.dart",
       "via": "gen-dart-client emits listWorkItemsQueryName Dart const; frontend code references this constant",
-      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
     }
   ],
   "ci_gates": [
