@@ -71,7 +71,7 @@ func TestFixturesNegativeDecisionFailsAsExpected(t *testing.T) {
 	root := t.TempDir()
 	// invalid: missing required fields (no title)
 	write(t, filepath.Join(root, "fixtures/negative/decision/no-title.json"),
-		`{"id":"000-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-fixture-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/no-title.meta.json"),
 		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"title","purpose":"decision missing title field"}`)
 
@@ -87,7 +87,7 @@ func TestFixturesNegativeDecisionFailsAsExpected(t *testing.T) {
 func TestFixturesNegativeMissingExpectedSubstringFails(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "fixtures/negative/decision/bad.json"),
-		`{"id":"000-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-fixture-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/bad.meta.json"),
 		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"this-string-not-present","purpose":"test bad expected substring"}`)
 	res, _ := VerifyFixtures(root)
@@ -251,7 +251,7 @@ func TestFixturesDuplicatePurposeRejected(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"minimal valid decision"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/b.json"),
-		`{"id":"000-other","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-fixture-other","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/b.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"minimal valid decision"}`)
 	res, _ := VerifyFixtures(root)
@@ -277,7 +277,7 @@ func TestFixturesSamePurposeAcrossCategoriesAllowed(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"required field coverage"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/b.json"),
-		`{"id":"000-no-title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-fixture-no-title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/b.meta.json"),
 		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"title","purpose":"required field coverage"}`)
 	res, _ := VerifyFixtures(root)
@@ -344,7 +344,7 @@ func TestFixturesRejectsTimestampSuffixedDuplicate(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-a.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"Ensure a unique accepted decision fixture validates successfully (1780485421)"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-b.json"),
-		`{"id":"000-cycle-b","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-fixture-cycle-b","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-b.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"Ensure a unique accepted decision fixture validates successfully (1780485142)"}`)
 	res, _ := VerifyFixtures(root)
@@ -485,7 +485,123 @@ func TestNoiseMarkerVariants(t *testing.T) {
 	}
 }
 
+// D026 — broader noise-marker coverage.
+
+func TestNoiseMarkerD026FilenameCycle(t *testing.T) {
+	root := t.TempDir()
+	// Filename itself contains cycle-N; purpose and content are scrubbed.
+	write(t, filepath.Join(root, "fixtures/positive/decision/scrubbed-but-cycle-42-in-name.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/scrubbed-but-cycle-42-in-name.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"decision validator must accept a minimal record"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected rejection on filename cycle-N, got OK")
+	}
+	hit := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "D026") && strings.Contains(c.Reason, "filename") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Errorf("expected 'D026 ... filename' reason, got %+v", res.Checks)
+	}
+}
+
+func TestNoiseMarkerD026DataContentCycle(t *testing.T) {
+	root := t.TempDir()
+	// Filename and purpose are clean; cycle-N hides in examples (data file).
+	data := `{"id":"000-fixture-positive-min","title":"fixture","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["this fixture validates for cycle 44 acceptance"],"counterexamples":[],"created_at":"2026-06-03"}`
+	write(t, filepath.Join(root, "fixtures/positive/decision/clean-name.json"), data)
+	write(t, filepath.Join(root, "fixtures/positive/decision/clean-name.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"clean-name validator coverage"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected rejection on data-content cycle-N, got OK")
+	}
+	hit := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "D026") && strings.Contains(c.Reason, "data contains") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Errorf("expected 'D026 ... data contains' reason, got %+v", res.Checks)
+	}
+}
+
+func TestNoiseMarkerD026MetaContentCycleOutsidePurpose(t *testing.T) {
+	root := t.TempDir()
+	// Filename and purpose are clean; cycle-N hides in a different meta field.
+	write(t, filepath.Join(root, "fixtures/positive/decision/clean.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/clean.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"clean rule coverage","from_role":"dumb-agent cycle 1"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected rejection on meta-content cycle-N outside purpose, got OK")
+	}
+	hit := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "D026") && strings.Contains(c.Reason, "meta contains") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Errorf("expected 'D026 ... meta contains' reason, got %+v", res.Checks)
+	}
+}
+
+func TestNoiseMarkerD026StrictIDWhitelist(t *testing.T) {
+	cases := []struct {
+		name string
+		id   string
+		want bool
+	}{
+		{"canonical 000-fixture-positive-minimal accepted", "000-fixture-positive-minimal", false},
+		{"canonical 000-fixture-negative-something accepted", "000-fixture-negative-something", false},
+		{"102-fixture-positive-cycle rejected", "102-fixture-positive-cycle-1780492000", true},
+		{"103-fixture-positive rejected (no cycle but not 000-)", "103-fixture-positive-anything", true},
+		{"real decision id 022-ssotdeps rejected when in fixture dir", "022-ssotdeps-cross-check", true},
+		{"001-anything rejected (not 000-)", "001-fixture-positive", true},
+		{"999- rejected (subsumes D023 rule)", "999-fixture-positive", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			data := `{"id":"` + tc.id + `","title":"x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
+			write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), data)
+			write(t, filepath.Join(root, "fixtures/positive/decision/x.meta.json"),
+				`{"fixture_type":"decision","expected":"pass","purpose":"id whitelist coverage check"}`)
+			res, _ := VerifyFixtures(root)
+			rejected := !res.OK
+			if rejected != tc.want {
+				t.Errorf("id=%q: rejected=%v, want %v. checks=%+v", tc.id, rejected, tc.want, res.Checks)
+			}
+		})
+	}
+}
+
+func TestNoiseMarkerD026PathScopedIDRule(t *testing.T) {
+	// A non-decision fixture (under /work-item/) with a non-000 id must NOT
+	// trip the D026 id rule (the rule is decision-fixture-specific).
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/negative/work-item/wi.json"),
+		`{"kind":"aggregate","name":"DemoThing","slots":[{"name":"x","type":"string","required":true}]}`)
+	write(t, filepath.Join(root, "fixtures/negative/work-item/wi.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"","purpose":"work-item legacy fixture path test"}`)
+	res, _ := VerifyFixtures(root)
+	// Should not trip D026 id rule; an unrelated failure is fine for this
+	// test's purpose (we only care that "noise marker (D026)" isn't the reason).
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "noise marker (D026)") && strings.Contains(c.Reason, "id") {
+			t.Errorf("work-item fixture should NOT trip D026 id rule, got %q", c.Reason)
+		}
+	}
+}
+
 func TestNoiseMarkerRejects999IDPrefixOnDecisionFixture(t *testing.T) {
+	// D023 introduced the 999- ban. D026 subsumed it via the broader
+	// ^000-fixture- whitelist, so the rejection reason now cites D026.
 	root := t.TempDir()
 	data := `{"id":"999-fixture-something","title":"x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
 	write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), data)
@@ -497,12 +613,12 @@ func TestNoiseMarkerRejects999IDPrefixOnDecisionFixture(t *testing.T) {
 	}
 	hit := false
 	for _, c := range res.Checks {
-		if strings.Contains(c.Reason, "noise marker (D023)") && strings.Contains(c.Reason, "999-") {
+		if strings.Contains(c.Reason, "noise marker (D026)") && strings.Contains(c.Reason, `"999-fixture-something"`) {
 			hit = true
 		}
 	}
 	if !hit {
-		t.Errorf("expected 'noise marker (D023) ... 999-' reason, got %+v", res.Checks)
+		t.Errorf("expected 'noise marker (D026) ... 999-fixture-something' reason, got %+v", res.Checks)
 	}
 }
 

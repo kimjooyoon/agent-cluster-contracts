@@ -1,5 +1,5 @@
 {
-  "version": "0.14.0",
+  "version": "0.15.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -335,19 +335,22 @@
     },
     {
       "id": "C-012",
-      "rule": "probe fixtures rejects any fixture whose meta.purpose (RAW, before normalization) contains a `cycle-N` token, OR whose decision fixture data file has `id` starting with `999-`. These are structural fingerprints of the dumb-agent's noise generator and are rejected on first occurrence — no banlist seeding required. The 999- id range is reserved as a placeholder/do-not-use marker; canonical test fixtures use 000- instead.",
+      "rule": "probe fixtures rejects any fixture carrying the dumb-agent generator's structural fingerprint, on first occurrence (no banlist seeding required). The rule scans, in this order, for a `cycle-N` token (regex `(?i)\\bcycle[\\s-]\\d+\\b`) in: meta.purpose (D023), the fixture filename (D026), the raw data file content (D026), the raw meta file content (D026). For fixtures whose PATH is under `fixtures/*/decision/`, the data file's `id` must also match `^000-fixture-` (D026 — supersedes D023's narrower 999- ban). The 000-fixture- namespace is reserved for canonical/designer-authored decision fixtures; any other prefix in fixture data is the dumb-agent trying to look like a real decision (observed: 102-, 103-).",
       "rationale": "The wording-variation arms race observed across D015→D017→D018→D020 has each iteration cost ~10–30 minutes between adaptation and observation. Adding a new banlist seed per cycle does not raise the dumb-agent's iteration cost — it just keeps the loop spinning. Structural markers (literal `cycle-N` substrings; reserved id prefix) target the *generator's tells* rather than the *output's wording*, so adapting requires editing the generator itself (which is outside dumb-agent's allowed_paths).",
       "examples": [
-        "purpose: 'Verify accepted decision fixture remains valid for top-down governance scope in cycle 40' — `cycle 40` matches `(?i)\\bcycle[\\s-]\\d+\\b`; rejected.",
-        "decision fixture id 999-fixture-positive-cycle-1780487500 — id starts with 999-; rejected.",
-        "canonical fixtures/positive/decision/decision-valid-minimal.json uses id 000-fixture-positive-minimal so the noise rule applies uniformly to all decision fixtures without exception."
+        "purpose: 'Verify accepted decision fixture remains valid for top-down governance scope in cycle 40' — `cycle 40` matches the regex; rejected (D023 layer).",
+        "filename decision-positive-cycle-1780492000.json — `cycle-1780492000` matches; rejected on filename (D026 layer) even when purpose is scrubbed.",
+        "data examples ['this fixture validates governance scoping and accepted status for cycle 44.'] — `cycle 44` matches; rejected on data-content (D026 layer).",
+        "decision fixture id 102-fixture-positive-cycle-1780492000 — id is not in 000-fixture- namespace; rejected (D026 id layer) even when filename/content cycle-N was scrubbed.",
+        "canonical fixtures use id 000-fixture-positive-minimal / 000-fixture-negative-missing-owner etc., placing them inside the reserved namespace."
       ],
       "counterexamples": [
-        "purpose 'covers cycle-level acceptance tests' (no digit after cycle) — passes; the rule targets cycle-N markers, not the English word.",
-        "real decision record ids like 022-ssotdeps-cross-check — pass; the 999- ban only applies inside fixtures/."
+        "purpose 'covers cycle-level acceptance tests' (no digit after cycle) — passes; the regex requires \\bcycle[\\s-]\\d+\\b.",
+        "Real decision records under decisions/ (e.g. 022-ssotdeps-cross-check) are unaffected — the id rule applies only to files under fixtures/*/decision/.",
+        "Legacy work-item fixtures that mis-declare fixture_type=decision but live under fixtures/*/work-item/ are NOT subject to the id rule (path-scoped, not meta-type-scoped) — backlog item #3 for separate cleanup."
       ],
-      "guard_candidate": { "tool": "internal/probe.noiseMarkerReason (D023): scans meta.purpose for cycle-N regex and decision fixture data for 999- id prefix; rejects before banlist+dedup so noise dies on first occurrence", "status": "implemented" },
-      "decision": "023-fixture-noise-markers"
+      "guard_candidate": { "tool": "internal/probe.noiseMarkerReason: 5 layers — purpose cycle-N (D023), filename cycle-N (D026), data content cycle-N (D026), meta content cycle-N (D026), decision fixture id whitelist ^000-fixture- (D026, supersedes D023's 999- ban)", "status": "implemented" },
+      "decision": "026-stricter-noise-markers"
     },
     {
       "id": "C-013",

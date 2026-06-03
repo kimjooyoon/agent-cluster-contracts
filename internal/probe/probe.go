@@ -333,20 +333,29 @@ var (
 	purposeCollapseSpaces    = regexp.MustCompile(`\s+`)
 )
 
-// noiseMarkerReason returns a non-empty rejection reason if meta or the
-// fixture data carry the dumb-agent's generator fingerprint:
+// noiseMarkerReason returns a non-empty rejection reason if meta, the
+// fixture filename, or the fixture data carry the dumb-agent's
+// generator fingerprint:
 //
-//   - meta.Purpose (RAW, before normalize) contains a `cycle-N` token —
-//     legitimate purposes describe the rule being exercised, not the loop
-//     iteration that produced the fixture.
-//   - For decision fixtures, the data file's `id` starts with `999-` —
-//     the 999-prefix is reserved as a "do not use" placeholder; no
-//     accepted decision will ever live there.
+//   - meta.Purpose (RAW, before normalize) contains a `cycle-N` token (D023).
+//   - The fixture file PATH contains a `cycle-N` token (D026) — catches the
+//     `decision-positive-cycle-EPOCH.json` filename pattern even when the
+//     purpose and id have been scrubbed.
+//   - The fixture data file's RAW content contains a `cycle-N` token (D026)
+//     — catches cycle-N leftover in title/examples/evidence.ref when the
+//     dumb-agent forgets to scrub one of them.
+//   - The fixture meta file's RAW content contains a `cycle-N` token (D026)
+//     — defensive scan over the full meta JSON, not just purpose.
+//   - For decision fixtures, the data file's `id` does NOT match
+//     `^000-fixture-` (D026, supersedes D023's narrower 999- check). The
+//     000-fixture-* range is reserved for canonical/designer-authored
+//     fixtures; any other prefix is rejected because it's the dumb-agent
+//     trying to look like a real decision (observed: 102-, 103-).
 //
-// Decision 023 introduced this. The signal is *structural* (the
-// generator's tells), not *semantic* (what the purpose words say), so
-// the dumb-agent can't dodge it by rephrasing alone — it would have to
-// change its generator code (which lives outside its allowed paths).
+// The signal is *structural* (the generator's tells), not *semantic* (what
+// the purpose words say), so the dumb-agent can't dodge it by rephrasing
+// alone — it would have to change its generator code (which lives outside
+// its allowed paths).
 func noiseMarkerReason(meta FixtureMeta, dataPath string) string {
 	if cycleMarkerRe.MatchString(meta.Purpose) {
 		return fmt.Sprintf(
@@ -354,14 +363,43 @@ func noiseMarkerReason(meta FixtureMeta, dataPath string) string {
 			meta.Purpose,
 		)
 	}
-	if meta.FixtureType == "decision" {
+	if cycleMarkerRe.MatchString(filepath.Base(dataPath)) {
+		return fmt.Sprintf(
+			"noise marker (D026): fixture filename %q contains a `cycle-N` token. Filenames must describe what the fixture tests, not the iteration that produced it",
+			filepath.Base(dataPath),
+		)
+	}
+	if dataBytes, err := os.ReadFile(dataPath); err == nil {
+		if loc := cycleMarkerRe.FindIndex(dataBytes); loc != nil {
+			return fmt.Sprintf(
+				"noise marker (D026): fixture data contains a `cycle-N` token (%q at byte %d). Scrub the cycle-iteration marker from id, title, examples, and evidence.ref",
+				string(dataBytes[loc[0]:loc[1]]), loc[0],
+			)
+		}
+	}
+	metaPath := strings.TrimSuffix(dataPath, ".json") + ".meta.json"
+	if metaBytes, err := os.ReadFile(metaPath); err == nil {
+		if loc := cycleMarkerRe.FindIndex(metaBytes); loc != nil {
+			return fmt.Sprintf(
+				"noise marker (D026): fixture meta contains a `cycle-N` token (%q at byte %d) outside the purpose field",
+				string(metaBytes[loc[0]:loc[1]]), loc[0],
+			)
+		}
+	}
+	// The id rule applies to fixtures whose PATH places them under
+	// fixtures/<category>/decision/. We anchor on path rather than
+	// meta.FixtureType because some legacy fixtures (under work-item/)
+	// declare fixture_type=decision even though their data is IR —
+	// that mismatch is a separate backlog item; D026 should not
+	// double-fire on it.
+	if isDecisionFixturePath(dataPath) {
 		var data struct {
 			ID string `json:"id"`
 		}
 		if err := jsonutil.ReadFile(dataPath, &data); err == nil {
-			if strings.HasPrefix(data.ID, "999-") {
+			if !decisionFixtureIDRe.MatchString(data.ID) {
 				return fmt.Sprintf(
-					"noise marker (D023): decision fixture id %q starts with `999-` (reserved placeholder range). Use a real decision id pattern (NNN-slug, NNN ∉ 999)",
+					"noise marker (D026): decision fixture id %q does not match the reserved canonical pattern `^000-fixture-`. Fixtures must live in the 000-fixture- namespace (000-fixture-positive-minimal, 000-fixture-negative-missing-owner, …). Real decision records under decisions/ keep using sequential NNN-slug; only fixture data files are restricted",
 					data.ID,
 				)
 			}
@@ -370,7 +408,15 @@ func noiseMarkerReason(meta FixtureMeta, dataPath string) string {
 	return ""
 }
 
-var cycleMarkerRe = regexp.MustCompile(`(?i)\bcycle[\s\-]\d+\b`)
+func isDecisionFixturePath(p string) bool {
+	s := filepath.ToSlash(p)
+	return strings.Contains(s, "/fixtures/positive/decision/") || strings.Contains(s, "/fixtures/negative/decision/")
+}
+
+var (
+	cycleMarkerRe       = regexp.MustCompile(`(?i)\bcycle[\s\-]\d+\b`)
+	decisionFixtureIDRe = regexp.MustCompile(`^000-fixture-`)
+)
 
 // NormalizePurpose returns the comparable form used by D015 dedup after D017.
 // Two purposes are duplicates if their NormalizePurpose results are equal.

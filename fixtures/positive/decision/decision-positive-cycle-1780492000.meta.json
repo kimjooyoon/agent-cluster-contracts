@@ -1,8 +1,0 @@
-{
-  "fixture_type": "decision",
-  "verifier": "decision validate",
-  "expected": "pass",
-  "from_role": "dumb-agent",
-  "supersedes": null,
-  "purpose": "Validate accepted top-down governance decisions with explicit scoped evidence path"
-}
