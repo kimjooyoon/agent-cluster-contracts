@@ -252,6 +252,98 @@ func TestVerifyForbiddenSymmetryNilTolerant(t *testing.T) {
 	}
 }
 
+// D035 — VerifyToolsReadmeCoverage: every verifier/code-generator
+// ssot_artifact under tools/ must have a section heading and a path
+// mention in tools/README.md.
+
+func writeToolsReadme(t *testing.T, dir, body string) string {
+	t.Helper()
+	p := filepath.Join(dir, "README.md")
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestVerifyToolsReadmeCoverageAllDocumented(t *testing.T) {
+	dir := t.TempDir()
+	p := writeToolsReadme(t, dir,
+		"# tools\n\n## foo\n\nstuff `tools/foo/main.go`\n\n## bar\n\nmore `tools/bar/main.go`\n")
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "foo-tool", Kind: "verifier", Path: "tools/foo/main.go"},
+		{ID: "bar-tool", Kind: "code-generator", Path: "tools/bar/main.go"},
+	}}
+	if errs := VerifyToolsReadmeCoverage(m, p); len(errs) != 0 {
+		t.Errorf("expected 0 errors, got %v", errs)
+	}
+}
+
+func TestVerifyToolsReadmeCoverageFlagsMissingHeading(t *testing.T) {
+	dir := t.TempDir()
+	// Has path mention in a table but no `## foo` section.
+	p := writeToolsReadme(t, dir, "# tools\n\nsee `tools/foo/main.go` in some prose\n")
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "foo-tool", Kind: "verifier", Path: "tools/foo/main.go"},
+	}}
+	errs := VerifyToolsReadmeCoverage(m, p)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "heading=false") {
+		t.Errorf("violation should report heading=false, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyToolsReadmeCoverageFlagsMissingPath(t *testing.T) {
+	dir := t.TempDir()
+	// Has heading but no exact path mention.
+	p := writeToolsReadme(t, dir, "# tools\n\n## foo\n\ndocs about foo without the source path\n")
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "foo-tool", Kind: "verifier", Path: "tools/foo/main.go"},
+	}}
+	errs := VerifyToolsReadmeCoverage(m, p)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0].Error(), "path=false") {
+		t.Errorf("violation should report path=false, got %q", errs[0].Error())
+	}
+}
+
+func TestVerifyToolsReadmeCoverageIgnoresNonToolArtifacts(t *testing.T) {
+	dir := t.TempDir()
+	p := writeToolsReadme(t, dir, "# tools\n")
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "concept-map", Kind: "concept-map", Path: "concept-map/concept-map.riido.json"},
+		{ID: "agent-roles", Kind: "agent-roles", Path: "agent-roles.riido.json"},
+		{ID: "schema-x", Kind: "schema", Path: "ir/schema/ir.schema.json"},
+	}}
+	if errs := VerifyToolsReadmeCoverage(m, p); len(errs) != 0 {
+		t.Errorf("non-tool artifacts must not trip the rule, got %v", errs)
+	}
+}
+
+func TestVerifyToolsReadmeCoverageIgnoresVerifiersOutsideToolsDir(t *testing.T) {
+	dir := t.TempDir()
+	p := writeToolsReadme(t, dir, "# tools\n")
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "external-verifier", Kind: "verifier", Path: "external/verifier/main.go"},
+	}}
+	if errs := VerifyToolsReadmeCoverage(m, p); len(errs) != 0 {
+		t.Errorf("verifiers outside tools/ must not trip the rule, got %v", errs)
+	}
+}
+
+func TestVerifyToolsReadmeCoverageMissingFileSurfacesError(t *testing.T) {
+	m := &Map{SsotArtifacts: []SsotArtifact{
+		{ID: "foo-tool", Kind: "verifier", Path: "tools/foo/main.go"},
+	}}
+	errs := VerifyToolsReadmeCoverage(m, "/nonexistent/README.md")
+	if len(errs) == 0 {
+		t.Errorf("expected error for missing README")
+	}
+}
+
 // D034 — VerifyAgentContractMirror: AGENT_CONTRACT.md Allowed/Forbidden
 // paths code blocks must match agent-roles dumb-agent role exactly.
 

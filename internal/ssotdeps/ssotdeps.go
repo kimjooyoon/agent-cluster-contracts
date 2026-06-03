@@ -331,6 +331,48 @@ func CrossCheck(m *Map, cm *conceptmap.Map) []error {
 
 var cidRefRe = regexp.MustCompile(`C-[0-9]{3}`)
 
+// VerifyToolsReadmeCoverage enforces that every tool in the dep map
+// (kind=verifier or kind=code-generator with path starting with
+// tools/) is mentioned by name in tools/README.md. Decision 035
+// introduced this after audit found docfresh (added by D025) was in
+// the dep map but missing from tools/README.md — same drift class as
+// D034 (AGENT_CONTRACT.md mirror), applied to the tools catalog.
+//
+// readmePath is the absolute path to tools/README.md. Returns one
+// error per uncovered tool; empty slice means OK.
+func VerifyToolsReadmeCoverage(m *Map, readmePath string) []error {
+	if m == nil {
+		return nil
+	}
+	data, err := os.ReadFile(readmePath)
+	if err != nil {
+		return []error{fmt.Errorf("tools/README.md not readable at %s: %w", readmePath, err)}
+	}
+	readme := string(data)
+	var errs []error
+	for _, a := range m.SsotArtifacts {
+		if a.Kind != "verifier" && a.Kind != "code-generator" {
+			continue
+		}
+		p := filepath.ToSlash(a.Path)
+		if !strings.HasPrefix(p, "tools/") || !strings.HasSuffix(p, "/main.go") {
+			continue
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(p, "tools/"), "/main.go")
+		// Require both the section heading and a path mention so a
+		// stray substring in another tool's prose doesn't false-positive.
+		hasHeading := strings.Contains(readme, "## "+name+"\n") || strings.Contains(readme, "## "+name+" ")
+		hasPath := strings.Contains(readme, a.Path)
+		if !hasHeading || !hasPath {
+			errs = append(errs, fmt.Errorf(
+				"tools/README.md coverage drift (D035): tool %q (ssot_artifact %q, path %s) is missing from tools/README.md. Need a `## %s` section heading AND a reference to `%s` (typically in the 'Where each tool's source lives' table). Found heading=%v, path=%v",
+				name, a.ID, a.Path, name, a.Path, hasHeading, hasPath,
+			))
+		}
+	}
+	return errs
+}
+
 // VerifyAgentContractMirror enforces that AGENT_CONTRACT.md's "Allowed
 // paths" and "Forbidden paths" code blocks for the dumb-agent role
 // match agent-roles.riido.json's dumb-agent.allowed_paths and

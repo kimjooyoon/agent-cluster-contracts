@@ -1,5 +1,5 @@
 {
-  "version": "0.22.0",
+  "version": "0.23.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -447,6 +447,21 @@
       ],
       "guard_candidate": { "tool": "internal/ssotdeps.VerifyAgentContractMirror (D034) — extracts code blocks via regex over `### Allowed paths` and `### Forbidden paths` headings, compares as sets against agent-roles dumb-agent role's allowed_paths and forbidden_paths. Wired into ssotdeps cross-check; runs in contracts.yml on every PR", "status": "implemented" },
       "decision": "034-agent-contract-mirror-guard"
+    },
+    {
+      "id": "C-019",
+      "rule": "Every ssot_artifact in ssot-dependency-map.riido.json with kind=verifier OR kind=code-generator and a path under tools/ MUST have a section heading (`## <name>`) AND a path mention (`tools/<name>/main.go`) in tools/README.md. The README is the canonical operator-facing catalog of contracts tools; an undocumented tool is invisible to humans who read the README first.",
+      "rationale": "Audit pre-D035 found docfresh (added by D025) was registered in the dep map but missing from tools/README.md — same recurring drift class as D034 (AGENT_CONTRACT.md mirror). Section heading AND path mention required separately so a stray substring of one tool's name in another's prose doesn't false-positive (e.g. 'docfresh' as a word in a vocablint description shouldn't pass).",
+      "examples": [
+        "After D035: tools/README.md has `## docfresh` and `tools/docfresh/main.go` in the 'Where each tool's source lives' table. ssotdeps cross-check reports 'all verifier/code-generator tools documented'.",
+        "Simulated removal of docfresh section: 'tools/README.md coverage drift (D035): tool \"docfresh\" is missing... Found heading=false, path=false'."
+      ],
+      "counterexamples": [
+        "Non-tool ssot_artifacts (concept-map, agent-roles, schemas, ir docs) are out of scope — they have their own SSOT homes.",
+        "tools/devpattern and tools/knowledge are mentioned in tools/README.md but are NOT in the dep map's ssot_artifacts (they're operator-internal, not CI verifiers per D033). The rule fires on dep-map presence, not on disk presence — so they aren't double-checked here."
+      ],
+      "guard_candidate": { "tool": "internal/ssotdeps.VerifyToolsReadmeCoverage (D035) — iterates ssot_artifacts with kind in {verifier, code-generator} and path under tools/; for each, checks tools/README.md contains both `## <name>` heading and `tools/<name>/main.go` path literal. Wired into ssotdeps cross-check; 5th sub-check axis", "status": "implemented" },
+      "decision": "035-tools-readme-coverage"
     }
   ]
 }

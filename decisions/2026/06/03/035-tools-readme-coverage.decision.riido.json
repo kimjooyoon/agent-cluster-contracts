@@ -1,0 +1,55 @@
+{
+  "id": "035-tools-readme-coverage",
+  "title": "Executable tools/README.md coverage guard — every dep-map tool must be documented",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit found docfresh (added by D025) is in dep map ssot_artifacts but missing from tools/README.md — same recurring drift class as D034. The README is the canonical operator-facing catalog of contracts tools"
+    },
+    {
+      "kind": "decision",
+      "ref": "025-doc-freshness-guard — added docfresh tool but forgot the tools/README.md update; D035 closes the round-trip"
+    },
+    {
+      "kind": "decision",
+      "ref": "034-agent-contract-mirror-guard — same SSOT-mirror-executable pattern; D035 extends it to the tools catalog"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/ssotdeps.VerifyToolsReadmeCoverage — iterates ssot_artifacts with kind in {verifier, code-generator} and path under tools/. For each, checks tools/README.md contains both `## <name>` heading AND `tools/<name>/main.go` path literal. Wired into ssotdeps cross-check as the 5th sub-check axis",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/ssotdeps/ssotdeps_test.go TestVerifyToolsReadmeCoverageAllDocumented + TestVerifyToolsReadmeCoverageFlagsMissingHeading + TestVerifyToolsReadmeCoverageFlagsMissingPath + TestVerifyToolsReadmeCoverageIgnoresNonToolArtifacts + TestVerifyToolsReadmeCoverageIgnoresVerifiersOutsideToolsDir + TestVerifyToolsReadmeCoverageMissingFileSurfacesError (6 cases)",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-019 — codifies the rule; concept-map bumped v0.22.0 to v0.23.0",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "After D035: tools/README.md has `## docfresh` section + `tools/docfresh/main.go` in the 'Where each tool's source lives' table. ssotdeps cross-check reports 'all verifier/code-generator tools documented in tools/README.md'.",
+    "Simulated removal of docfresh section: 'tools/README.md coverage drift (D035): tool \"docfresh\" (ssot_artifact \"docfresh-tool\", path tools/docfresh/main.go) is missing from tools/README.md. Found heading=false, path=false'."
+  ],
+  "counterexamples": [
+    "Non-tool ssot_artifacts (concept-map, agent-roles, schemas, ir docs) are out of scope — they live in their own SSOT homes.",
+    "tools/devpattern and tools/knowledge are mentioned in tools/README.md but are NOT in the dep map's ssot_artifacts (they're operator-internal, not CI verifiers per D033). The rule fires on dep-map presence, not on disk presence — D033 already covers the symmetric 'workflows reference an unregistered tool' direction.",
+    "Heading AND path are required separately so a stray substring of one tool's name in another's prose doesn't false-positive (e.g. 'docfresh' as a word in some other tool's description shouldn't pass the check)."
+  ],
+  "created_at": "2026-06-03"
+}
