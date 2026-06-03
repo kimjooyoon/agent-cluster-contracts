@@ -1,8 +1,0 @@
-{
-  "fixture_type": "decision",
-  "verifier": "decision validate",
-  "expected": "pass",
-  "from_role": "dumb-agent",
-  "supersedes": null,
-  "purpose": "Validate an accepted governance-focused top-down decision fixture for cycle 41"
-}

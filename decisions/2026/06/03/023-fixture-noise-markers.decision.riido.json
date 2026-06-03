@@ -1,0 +1,64 @@
+{
+  "id": "023-fixture-noise-markers",
+  "title": "Structural noise-marker check on fixture purpose and decision id",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "PR #80 (cycle-40) and #82 (cycle-41) both landed within hours of D021 with new purpose wordings outside the D018+D020 banlist; the dedup loop continued as predicted"
+    },
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-positive-cycle-1780487500.* — pre-deletion sample of the noise pattern"
+    },
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-positive-cycle-1780489000.* — pre-deletion sample of the noise pattern"
+    },
+    {
+      "kind": "decision",
+      "ref": "018-fixture-purpose-banlist — banlist seeds work but each costs a decision record per wording variant"
+    },
+    {
+      "kind": "decision",
+      "ref": "020-extend-purpose-banlist-cycle-39 — exactly the per-variant escalation D023 obsoletes"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/probe.noiseMarkerReason — scans meta.purpose (raw) for cycle-N regex AND decision fixture data for 999- id prefix; rejects before banlist+dedup so noise dies on first occurrence",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/probe/probe_test.go TestNoiseMarkerRejectsCycleNTokenInPurpose + TestNoiseMarkerVariants + TestNoiseMarkerRejects999IDPrefixOnDecisionFixture + TestNoiseMarkerAcceptsLegitimateIDsAndPurposes",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-012 — codifies the structural-fingerprint rule and the 999-/000- id convention",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Before D023: cycle-40 purpose 'Verify accepted decision fixture remains valid for top-down governance scope in cycle 40' normalizes uniquely and is not on the banlist → passes. After D023: raw purpose contains 'cycle 40' → rejected as noise marker.",
+    "Before D023: cycle fixture data id '999-fixture-positive-cycle-1780489000' passes all schema checks. After D023: id starts with 999- → rejected as reserved-placeholder.",
+    "Canonical fixture id renamed 999-fixture-positive → 000-fixture-positive-minimal so the same rule applies uniformly. 000- becomes the reserved synthetic-fixture range; 999- becomes the reserved do-not-use range."
+  ],
+  "counterexamples": [
+    "Real decision records (e.g. 022-ssotdeps-cross-check) are untouched — the 999- rule applies only to fixtures whose meta.fixture_type == 'decision'.",
+    "Purposes that mention the English word 'cycle' without a digit (e.g. 'cycle-level acceptance tests') pass — the regex requires \\bcycle[\\s-]\\d+\\b.",
+    "Future structural patterns (e.g. self-referencing evidence.ref pointing at the fixture's own path) can be added to noiseMarkerReason via a successor decision without changing the surrounding architecture."
+  ],
+  "created_at": "2026-06-03"
+}

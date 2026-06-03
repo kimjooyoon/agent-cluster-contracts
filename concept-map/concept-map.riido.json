@@ -1,5 +1,5 @@
 {
-  "version": "0.12.0",
+  "version": "0.13.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -332,6 +332,22 @@
       ],
       "guard_candidate": { "tool": "internal/probe.loadPurposeBanlist + banlistMatch (D018): regex-normalized comparison against the SSOT banlist before dedup", "status": "implemented" },
       "decision": "018-fixture-purpose-banlist"
+    },
+    {
+      "id": "C-012",
+      "rule": "probe fixtures rejects any fixture whose meta.purpose (RAW, before normalization) contains a `cycle-N` token, OR whose decision fixture data file has `id` starting with `999-`. These are structural fingerprints of the dumb-agent's noise generator and are rejected on first occurrence — no banlist seeding required. The 999- id range is reserved as a placeholder/do-not-use marker; canonical test fixtures use 000- instead.",
+      "rationale": "The wording-variation arms race observed across D015→D017→D018→D020 has each iteration cost ~10–30 minutes between adaptation and observation. Adding a new banlist seed per cycle does not raise the dumb-agent's iteration cost — it just keeps the loop spinning. Structural markers (literal `cycle-N` substrings; reserved id prefix) target the *generator's tells* rather than the *output's wording*, so adapting requires editing the generator itself (which is outside dumb-agent's allowed_paths).",
+      "examples": [
+        "purpose: 'Verify accepted decision fixture remains valid for top-down governance scope in cycle 40' — `cycle 40` matches `(?i)\\bcycle[\\s-]\\d+\\b`; rejected.",
+        "decision fixture id 999-fixture-positive-cycle-1780487500 — id starts with 999-; rejected.",
+        "canonical fixtures/positive/decision/decision-valid-minimal.json uses id 000-fixture-positive-minimal so the noise rule applies uniformly to all decision fixtures without exception."
+      ],
+      "counterexamples": [
+        "purpose 'covers cycle-level acceptance tests' (no digit after cycle) — passes; the rule targets cycle-N markers, not the English word.",
+        "real decision record ids like 022-ssotdeps-cross-check — pass; the 999- ban only applies inside fixtures/."
+      ],
+      "guard_candidate": { "tool": "internal/probe.noiseMarkerReason (D023): scans meta.purpose for cycle-N regex and decision fixture data for 999- id prefix; rejects before banlist+dedup so noise dies on first occurrence", "status": "implemented" },
+      "decision": "023-fixture-noise-markers"
     }
   ]
 }

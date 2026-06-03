@@ -21,7 +21,7 @@ func write(t *testing.T, path, content string) {
 // validDecisionJSON returns a minimal-but-valid decision record JSON.
 func validDecisionJSON() string {
 	return `{
-  "id": "999-fixture-positive-min",
+  "id": "000-fixture-positive-min",
   "title": "fixture",
   "owner": "test",
   "status": "accepted",
@@ -71,7 +71,7 @@ func TestFixturesNegativeDecisionFailsAsExpected(t *testing.T) {
 	root := t.TempDir()
 	// invalid: missing required fields (no title)
 	write(t, filepath.Join(root, "fixtures/negative/decision/no-title.json"),
-		`{"id":"999-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/no-title.meta.json"),
 		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"title","purpose":"decision missing title field"}`)
 
@@ -87,7 +87,7 @@ func TestFixturesNegativeDecisionFailsAsExpected(t *testing.T) {
 func TestFixturesNegativeMissingExpectedSubstringFails(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "fixtures/negative/decision/bad.json"),
-		`{"id":"999-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/bad.meta.json"),
 		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"this-string-not-present","purpose":"test bad expected substring"}`)
 	res, _ := VerifyFixtures(root)
@@ -251,7 +251,7 @@ func TestFixturesDuplicatePurposeRejected(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"minimal valid decision"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/b.json"),
-		`{"id":"999-other","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-other","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/b.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"minimal valid decision"}`)
 	res, _ := VerifyFixtures(root)
@@ -277,7 +277,7 @@ func TestFixturesSamePurposeAcrossCategoriesAllowed(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"required field coverage"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/b.json"),
-		`{"id":"999-no-title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-no-title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/b.meta.json"),
 		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"title","purpose":"required field coverage"}`)
 	res, _ := VerifyFixtures(root)
@@ -344,7 +344,7 @@ func TestFixturesRejectsTimestampSuffixedDuplicate(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-a.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"Ensure a unique accepted decision fixture validates successfully (1780485421)"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-b.json"),
-		`{"id":"999-cycle-b","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+		`{"id":"000-cycle-b","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-b.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"Ensure a unique accepted decision fixture validates successfully (1780485142)"}`)
 	res, _ := VerifyFixtures(root)
@@ -431,6 +431,91 @@ func TestFixturesIRAggregateRejectsExtraQueryFields(t *testing.T) {
 	res, _ := VerifyFixtures(root)
 	if !res.OK {
 		t.Errorf("expected OK (negative caught extra wire_name): %+v", res.Checks)
+	}
+}
+
+// Decision 023 — structural noise-marker check (catches dumb-agent generator
+// fingerprint on first occurrence, no banlist entry needed).
+
+func TestNoiseMarkerRejectsCycleNTokenInPurpose(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"Some purpose for cycle 99"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected noise-marker rejection of 'cycle 99' token, got OK")
+	}
+	hit := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "noise marker (D023)") && strings.Contains(c.Reason, "cycle-N") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Errorf("expected 'noise marker (D023) ... cycle-N' reason, got %+v", res.Checks)
+	}
+}
+
+func TestNoiseMarkerVariants(t *testing.T) {
+	cases := []struct {
+		name    string
+		purpose string
+		want    bool
+	}{
+		{"cycle space digit", "Validate accepted decision for cycle 7", true},
+		{"cycle hyphen digit", "Foo cycle-7 bar", true},
+		{"cycle uppercase", "Bar Cycle 12 baz", true},
+		{"cycle word alone (no digit)", "the development cycle for v2", false},
+		{"cycle-level (no digit, hyphen-word)", "cycle-level acceptance test", false},
+		{"recycle is not cycle", "the recycle process", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), validDecisionJSON())
+			write(t, filepath.Join(root, "fixtures/positive/decision/x.meta.json"),
+				`{"fixture_type":"decision","expected":"pass","purpose":"`+tc.purpose+`"}`)
+			res, _ := VerifyFixtures(root)
+			rejected := !res.OK
+			if rejected != tc.want {
+				t.Errorf("purpose=%q: noise-rejected=%v, want %v. checks=%+v", tc.purpose, rejected, tc.want, res.Checks)
+			}
+		})
+	}
+}
+
+func TestNoiseMarkerRejects999IDPrefixOnDecisionFixture(t *testing.T) {
+	root := t.TempDir()
+	data := `{"id":"999-fixture-something","title":"x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), data)
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"some genuinely novel purpose"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected 999- id prefix rejection, got OK")
+	}
+	hit := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "noise marker (D023)") && strings.Contains(c.Reason, "999-") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Errorf("expected 'noise marker (D023) ... 999-' reason, got %+v", res.Checks)
+	}
+}
+
+func TestNoiseMarkerAcceptsLegitimateIDsAndPurposes(t *testing.T) {
+	// Sanity: a fixture with an id outside the 999- range and a purpose
+	// without `cycle-N` markers must NOT be rejected by the noise check.
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"Decision validator must accept a minimal record with all required fields populated"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("legitimate fixture should pass, got %+v", res.Checks)
 	}
 }
 
