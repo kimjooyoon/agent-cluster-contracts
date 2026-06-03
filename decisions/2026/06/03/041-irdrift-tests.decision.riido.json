@@ -1,0 +1,41 @@
+{
+  "id": "041-irdrift-tests",
+  "title": "Test coverage for internal/irdrift (CI-bound DSL→IR drift guard)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit identified internal/irdrift as CI-bound (every PR via contracts.yml) but untested. Check() shells out to SBCL so the integration test uses exec.LookPath to skip gracefully when SBCL is missing; pure-Go helpers (isGeneratedIR + copyDir + copyFile) are always tested"
+    },
+    {
+      "kind": "decision",
+      "ref": "040-conceptmap-tests - same priority pattern (CI-bound untested package → tests next); D041 finishes the CI-bound untested-package backlog"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "test",
+      "ref": "internal/irdrift/irdrift_test.go - TestIsGeneratedIR (9 positive+negative cases incl. .ir.json suffix + ir/domain/ dir + nested path rejection) + TestCopyDirRoundTrip (4-file nested tree) + TestCopyDirCreatesEmptyDirectories + TestCopyFileWritesBytesExactly (binary-safe round-trip) + TestCopyFileCreatesIntermediateDirectories + TestCopyDirSrcMissingReturnsError + TestCheckIntegrationWithSBCL (end-to-end real-tree, skipped if sbcl not in PATH; runs in CI which installs sbcl)",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "isGeneratedIR rejects schema/ir.schema.json (wrong dir), domain/x.json (wrong ext), and nested domain/sub/x.ir.json (only direct domain/ children count).",
+    "copyDir round-trips a 4-file tree (top.txt + a/sibling.txt + a/b/leaf.txt + a/b/c/d/deep.txt) preserving byte content.",
+    "TestCheckIntegrationWithSBCL passes locally and in contracts.yml (which installs SBCL): regenerates the contracts repo's IR into a temp dir and asserts zero drift against committed files."
+  ],
+  "counterexamples": [
+    "3 untested internal/ packages remain (devpattern, jsonutil, knowledge) - all operator-internal (not CI-bound). D041 closes the CI-bound test-coverage backlog; the remaining packages can be addressed in future decisions when their reliability matters.",
+    "Tests verify Check's helpers but don't simulate emitter failure paths (e.g. malformed DSL → SBCL error) — covered implicitly by the integration test running against real DSL."
+  ],
+  "created_at": "2026-06-03"
+}
