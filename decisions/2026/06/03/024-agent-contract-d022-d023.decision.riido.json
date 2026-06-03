@@ -1,0 +1,44 @@
+{
+  "id": "024-agent-contract-d022-d023",
+  "title": "AGENT_CONTRACT.md catches up with D022 (cross-check) + D023 (noise markers + id convention)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "AGENT_CONTRACT.md last touched in D021 (688eda6); D022 and D023 landed afterward with substantive rules (ssotdeps cross-check; noise-marker check on raw purpose; 000-/999- fixture id convention) — none reflected in the doc dumb-agent reads first"
+    },
+    {
+      "kind": "decision",
+      "ref": "021-agent-contract-doc-current-with-fixture-rules — same SSOT-mirror-cleanup pattern; D024 is its successor"
+    },
+    {
+      "kind": "decision",
+      "ref": "022-ssotdeps-cross-check — added the cross-check guard mentioned in the new Step-2 note"
+    },
+    {
+      "kind": "decision",
+      "ref": "023-fixture-noise-markers — introduced layer-2 of the four purpose-rule layers and the 000-/999- id convention now documented"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "After D024: Purpose rules section enumerates 4 layers including the D023 structural noise marker; new 'Fixture id convention' subsection documents 000-/999- split; Step 2 mentions ssotdeps cross-check is CI-enforced."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03"
+}
