@@ -22,9 +22,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/codegen"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/decision"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/irdrift"
@@ -319,15 +321,21 @@ func verifyOneFixture(path, category string) FixtureCheck {
 	switch meta.FixtureType {
 	case "decision":
 		return runDecisionFixture(path, category, meta)
+	case "ir-aggregate":
+		return runIRFixture(path, category, meta, "aggregate")
+	case "ir-event":
+		return runIRFixture(path, category, meta, "event")
+	case "query":
+		return runIRFixture(path, category, meta, "query")
 	case "":
 		return FixtureCheck{
 			Path: path, Category: category, OK: false,
-			Reason: "meta.fixture_type required (v1 supports: decision)",
+			Reason: "meta.fixture_type required (supported: decision, ir-aggregate, ir-event, query)",
 		}
 	default:
 		return FixtureCheck{
 			Path: path, Category: category, OK: false,
-			Reason: "meta.fixture_type " + meta.FixtureType + " not supported by v1 (only \"decision\"); add a decision before extending fixture types",
+			Reason: "meta.fixture_type " + meta.FixtureType + " not supported; supported: decision, ir-aggregate, ir-event, query",
 		}
 	}
 }
@@ -348,6 +356,103 @@ func runDecisionFixture(path, category string, meta FixtureMeta) FixtureCheck {
 		msgs = append(msgs, e.Error())
 	}
 	return judgeOutcome(path, category, meta, false, strings.Join(msgs, "; "))
+}
+
+// runIRFixture validates an IR fixture against the structural rules defined
+// by ir/schema/ir.schema.json (mirrored in code to avoid a third-party JSON
+// Schema validator dependency). expectedKind is the kind the meta type
+// promises (aggregate / event / query).
+func runIRFixture(path, category string, meta FixtureMeta, expectedKind string) FixtureCheck {
+	doc := &codegen.IRDoc{}
+	if err := jsonutil.ReadFile(path, doc); err != nil {
+		return judgeOutcome(path, category, meta, false, "parse: "+err.Error())
+	}
+	errs := validateIRDoc(doc, expectedKind)
+	if len(errs) == 0 {
+		return judgeOutcome(path, category, meta, true, "")
+	}
+	var msgs []string
+	for _, e := range errs {
+		msgs = append(msgs, e.Error())
+	}
+	return judgeOutcome(path, category, meta, false, strings.Join(msgs, "; "))
+}
+
+var (
+	irKebabRe  = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	irSHARe    = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	irDSLPath  = regexp.MustCompile(`^dsl/.+\.lisp$`)
+	irKindEnum = map[string]bool{"aggregate": true, "event": true, "query": true}
+	irShape    = map[string]bool{"list": true, "one": true}
+)
+
+// validateIRDoc mirrors ir/schema/ir.schema.json in code. Returns one error per
+// rule violation. If the document is well-formed but its kind disagrees with
+// the meta's promise, that's also a violation (meta lied about fixture_type).
+func validateIRDoc(d *codegen.IRDoc, expectedKind string) []error {
+	var errs []error
+	if !irKindEnum[d.Kind] {
+		errs = append(errs, fmt.Errorf("kind %q: must be one of aggregate|event|query", d.Kind))
+	}
+	if d.Kind != expectedKind {
+		errs = append(errs, fmt.Errorf("kind %q does not match meta fixture_type promise %q", d.Kind, irFixtureTypeFor(expectedKind)))
+	}
+	if !irKebabRe.MatchString(d.Name) {
+		errs = append(errs, fmt.Errorf("name %q: must be kebab-case (^[a-z][a-z0-9-]*$)", d.Name))
+	}
+	if !irDSLPath.MatchString(d.Source.DSLFile) {
+		errs = append(errs, fmt.Errorf("source.dsl_file %q: must match dsl/*.lisp", d.Source.DSLFile))
+	}
+	if !irSHARe.MatchString(d.Source.SHA256) {
+		errs = append(errs, fmt.Errorf("source.sha256 %q: must be 64 hex chars", d.Source.SHA256))
+	}
+	switch d.Kind {
+	case "aggregate", "event":
+		if len(d.Slots) == 0 {
+			errs = append(errs, fmt.Errorf("kind=%s requires at least one slot", d.Kind))
+		}
+		if d.WireName != "" || d.Returns != nil {
+			errs = append(errs, fmt.Errorf("kind=%s must not declare wire_name or returns", d.Kind))
+		}
+		for i, s := range d.Slots {
+			if !irKebabRe.MatchString(s.Name) {
+				errs = append(errs, fmt.Errorf("slots[%d].name %q: must be kebab-case", i, s.Name))
+			}
+			if s.Type == "" {
+				errs = append(errs, fmt.Errorf("slots[%d].type: required", i))
+			}
+		}
+	case "query":
+		if len(d.Slots) != 0 {
+			errs = append(errs, fmt.Errorf("kind=query must not declare slots"))
+		}
+		if d.WireName == "" {
+			errs = append(errs, fmt.Errorf("kind=query requires wire_name"))
+		}
+		if d.Returns == nil {
+			errs = append(errs, fmt.Errorf("kind=query requires returns"))
+		} else {
+			if !irShape[d.Returns.Shape] {
+				errs = append(errs, fmt.Errorf("returns.shape %q: must be list|one", d.Returns.Shape))
+			}
+			if !irKebabRe.MatchString(d.Returns.Type) {
+				errs = append(errs, fmt.Errorf("returns.type %q: must be kebab-case", d.Returns.Type))
+			}
+		}
+	}
+	return errs
+}
+
+func irFixtureTypeFor(kind string) string {
+	switch kind {
+	case "aggregate":
+		return "ir-aggregate"
+	case "event":
+		return "ir-event"
+	case "query":
+		return "query"
+	}
+	return kind
 }
 
 func judgeOutcome(path, category string, meta FixtureMeta, passed bool, actualErr string) FixtureCheck {

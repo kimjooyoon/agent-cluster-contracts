@@ -152,8 +152,18 @@ Dumb-agent baseline + fixture verifier (introduced by decision 005).
   create domain fixtures or guard-candidate notes under a red baseline.
 
 `fixtures` walks `fixtures/{positive,negative}/**` and verifies each
-fixture against its `.meta.json` sidecar. v1 supports `fixture_type:
-"decision"` only; other types require their own decision.
+fixture against its `.meta.json` sidecar. Supported `fixture_type`
+values:
+
+| `fixture_type`  | Validator                                          | Added by |
+|-----------------|----------------------------------------------------|----------|
+| `decision`      | `internal/decision.Validate`                       | dec 005 |
+| `ir-aggregate`  | structural rules from `ir/schema/ir.schema.json`, kind=aggregate | dec 007 |
+| `ir-event`      | same schema, kind=event                            | dec 007 |
+| `query`         | same schema, kind=query                            | dec 007 |
+
+Adding a new `fixture_type` requires its own decision before the verifier
+is extended (so guards stay paired with the rules they enforce).
 
 ## gen-go-client
 

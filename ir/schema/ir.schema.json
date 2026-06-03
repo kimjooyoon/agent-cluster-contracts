@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-cluster.example/contracts/ir/schema/ir.schema.json",
+  "title": "IR Document",
+  "description": "Structural schema for any ir/domain/<name>.ir.json document. Emitted by dsl/emit-ir.lisp; consumed by gen-go-client, gen-dart-client, and probe fixtures (fixture_type ir-aggregate / ir-event / query). Adding a new kind requires a decision record.",
+  "type": "object",
+  "required": ["kind", "name", "source"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["aggregate", "event", "query"]
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Kebab-case identifier; Pascal/Camel/Snake variants are derived by codegen."
+    },
+    "source": {
+      "type": "object",
+      "required": ["dsl_file", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "dsl_file": {
+          "type": "string",
+          "pattern": "^dsl/.+\\.lisp$",
+          "description": "Path of the DSL source file, relative to the contracts repo root."
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Hex sha256 of the DSL source file as it was at emit time. irdrift re-derives and compares."
+        }
+      }
+    },
+    "slots": {
+      "type": "array",
+      "description": "Required when kind=aggregate or kind=event; absent for kind=query.",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "required"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "type": { "type": "string" },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "wire_name": {
+      "type": "string",
+      "description": "Required when kind=query — the GraphQL field identifier on the wire. Per C-006, backend/frontend reference the generated constant, never this literal."
+    },
+    "returns": {
+      "type": "object",
+      "description": "Required when kind=query.",
+      "required": ["shape", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "shape": { "type": "string", "enum": ["list", "one"] },
+        "type":  { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if":   { "properties": { "kind": { "const": "aggregate" } } },
+      "then": { "required": ["slots"], "not": { "required": ["wire_name", "returns"] } }
+    },
+    {
+      "if":   { "properties": { "kind": { "const": "event" } } },
+      "then": { "required": ["slots"], "not": { "required": ["wire_name", "returns"] } }
+    },
+    {
+      "if":   { "properties": { "kind": { "const": "query" } } },
+      "then": {
+        "required": ["wire_name", "returns"],
+        "not": { "required": ["slots"] }
+      }
+    }
+  ]
+}

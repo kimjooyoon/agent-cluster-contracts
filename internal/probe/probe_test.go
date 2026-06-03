@@ -123,10 +123,101 @@ func TestFixturesUnsupportedTypeRejected(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "fixtures/positive/work-item/x.json"), `{}`)
 	write(t, filepath.Join(root, "fixtures/positive/work-item/x.meta.json"),
-		`{"fixture_type":"work-item","expected":"pass"}`)
+		`{"fixture_type":"unknown-type","expected":"pass"}`)
 	res, _ := VerifyFixtures(root)
 	if res.OK {
-		t.Errorf("expected failure on unsupported fixture_type (v1 supports decision only), got OK")
+		t.Errorf("expected failure on unsupported fixture_type, got OK")
+	}
+}
+
+// validIRAggregateJSON returns a minimal-but-valid IR aggregate document.
+func validIRAggregateJSON() string {
+	return `{
+  "kind": "aggregate",
+  "name": "demo-thing",
+  "slots": [
+    {"name": "id", "type": "string", "required": true}
+  ],
+  "source": {
+    "dsl_file": "dsl/domain/demo-thing.lisp",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}`
+}
+
+func validIRQueryJSON() string {
+	return `{
+  "kind": "query",
+  "name": "list-things",
+  "wire_name": "things",
+  "returns": {"shape": "list", "type": "demo-thing"},
+  "source": {
+    "dsl_file": "dsl/domain/list-things.lisp",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}`
+}
+
+func TestFixturesIRAggregatePositivePasses(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/work-item/min.json"), validIRAggregateJSON())
+	write(t, filepath.Join(root, "fixtures/positive/work-item/min.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"pass"}`)
+	res, err := VerifyFixtures(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.OK {
+		t.Errorf("expected OK, got %+v", res.Checks)
+	}
+}
+
+func TestFixturesIRAggregateNegativeMissingSlotsFails(t *testing.T) {
+	root := t.TempDir()
+	// Aggregate with empty slots array — schema requires ≥1 slot.
+	write(t, filepath.Join(root, "fixtures/negative/work-item/no-slots.json"),
+		`{"kind":"aggregate","name":"x","slots":[],"source":{"dsl_file":"dsl/x.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`)
+	write(t, filepath.Join(root, "fixtures/negative/work-item/no-slots.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"at least one slot"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK (negative IR aggregate failed as expected): %+v", res.Checks)
+	}
+}
+
+func TestFixturesIRAggregateKindMismatchFails(t *testing.T) {
+	root := t.TempDir()
+	// Document is a query but meta promises ir-aggregate.
+	write(t, filepath.Join(root, "fixtures/positive/x/bad.json"), validIRQueryJSON())
+	write(t, filepath.Join(root, "fixtures/positive/x/bad.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"pass"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected failure when meta promises ir-aggregate but doc kind is query, got OK")
+	}
+}
+
+func TestFixturesQueryPositivePasses(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/query/list.json"), validIRQueryJSON())
+	write(t, filepath.Join(root, "fixtures/positive/query/list.meta.json"),
+		`{"fixture_type":"query","expected":"pass"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK, got %+v", res.Checks)
+	}
+}
+
+func TestFixturesIRAggregateRejectsExtraQueryFields(t *testing.T) {
+	root := t.TempDir()
+	// aggregate doc carrying a wire_name → schema rule says forbidden for non-query
+	write(t, filepath.Join(root, "fixtures/negative/x/bad.json"),
+		`{"kind":"aggregate","name":"x","slots":[{"name":"id","type":"string","required":true}],"wire_name":"oops","source":{"dsl_file":"dsl/x.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`)
+	write(t, filepath.Join(root, "fixtures/negative/x/bad.meta.json"),
+		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"must not declare wire_name"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK (negative caught extra wire_name): %+v", res.Checks)
 	}
 }
 

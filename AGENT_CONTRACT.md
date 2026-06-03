@@ -87,15 +87,21 @@ For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
 - A `<name>.meta.json` sidecar is required. Schema:
   ```json
   {
-    "fixture_type": "decision",
+    "fixture_type": "decision" | "ir-aggregate" | "ir-event" | "query",
     "expected": "pass" | "fail",
     "expected_error_category": "schema_violation" | "validation_error" | "..." (optional),
     "expected_error_contains": "substring the error must contain" (optional, when expected=fail),
     "from_role": "dumb-agent"
   }
   ```
-- v1 supports `fixture_type: "decision"` only. New types require a new
-  decision before being added; do not edit the verifier yourself.
+- Supported `fixture_type` values (each extension was its own decision —
+  `decision` from D005, `ir-aggregate`/`ir-event`/`query` from D007):
+  - `decision` — validates against `decisions/schema.riido.json`.
+  - `ir-aggregate` / `ir-event` / `query` — validates against
+    `ir/schema/ir.schema.json` AND the kind must match the meta type
+    (a `kind: query` doc under `fixture_type: ir-aggregate` fails).
+- Adding a new `fixture_type` requires its own decision; do not edit
+  the verifier yourself.
 - positive fixture under `fixtures/positive/` must declare
   `expected: "pass"` and must validate.
 - negative fixture under `fixtures/negative/` must declare
