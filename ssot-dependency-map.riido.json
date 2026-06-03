@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -61,6 +61,34 @@
       "owned_by": "agent-cluster-contracts"
     },
     {
+      "id": "dsl-work-item-created",
+      "kind": "dsl-source",
+      "path": "dsl/domain/work-item-created.lisp",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "ir-work-item-created",
+      "kind": "ir",
+      "path": "ir/domain/work-item-created.ir.json",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "gen-go-client",
+      "kind": "code-generator",
+      "path": "tools/gen-go-client/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "gen-dart-client",
+      "kind": "code-generator",
+      "path": "tools/gen-dart-client/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
       "id": "agent-roles",
       "kind": "agent-roles",
       "path": "agent-roles.riido.json",
@@ -76,6 +104,41 @@
       "to": "ir/domain/work-item.ir.json",
       "consumer_repo": "agent-cluster-contracts",
       "guard": "tools/irdrift (run in contracts.yml)"
+    },
+    {
+      "from": "dsl/domain/work-item-created.lisp",
+      "emitter": "dsl/emit-ir.lisp",
+      "to": "ir/domain/work-item-created.ir.json",
+      "consumer_repo": "agent-cluster-contracts",
+      "guard": "tools/irdrift (run in contracts.yml)"
+    },
+    {
+      "from": "ir/domain/work-item.ir.json",
+      "emitter": "tools/gen-go-client",
+      "to": "internal/contracts/work_item.go",
+      "consumer_repo": "agent-cluster-backend",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
+    },
+    {
+      "from": "ir/domain/work-item-created.ir.json",
+      "emitter": "tools/gen-go-client",
+      "to": "internal/contracts/work_item_created.go",
+      "consumer_repo": "agent-cluster-backend",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
+    },
+    {
+      "from": "ir/domain/work-item.ir.json",
+      "emitter": "tools/gen-dart-client",
+      "to": "lib/contracts_client/work_item.dart",
+      "consumer_repo": "agent-cluster-frontend",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
+    },
+    {
+      "from": "ir/domain/work-item-created.ir.json",
+      "emitter": "tools/gen-dart-client",
+      "to": "lib/contracts_client/work_item_created.dart",
+      "consumer_repo": "agent-cluster-frontend",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
     }
   ],
   "consumption_links": [
@@ -106,6 +169,38 @@
       "consumer_path": "internal/agentguard/agentguard.go",
       "via": "agentguard loads agent-roles.riido.json and applies the role's allowed/forbidden globs to the PR diff",
       "guard": "dumb-agent-safety.yml workflow"
+    },
+    {
+      "ssot": "ir-work-item",
+      "consumer_repo": "agent-cluster-backend",
+      "consumer_path": "internal/contracts/work_item.go",
+      "via": "gen-go-client emits this file from the IR; backend imports the package",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
+      "planned": true
+    },
+    {
+      "ssot": "ir-work-item-created",
+      "consumer_repo": "agent-cluster-backend",
+      "consumer_path": "internal/contracts/work_item_created.go",
+      "via": "gen-go-client emits this file from the IR; backend emits this type on the /events SSE endpoint",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
+      "planned": true
+    },
+    {
+      "ssot": "ir-work-item",
+      "consumer_repo": "agent-cluster-frontend",
+      "consumer_path": "lib/contracts_client/work_item.dart",
+      "via": "gen-dart-client emits this file from the IR; Flutter pages import it",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
+      "planned": true
+    },
+    {
+      "ssot": "ir-work-item-created",
+      "consumer_repo": "agent-cluster-frontend",
+      "consumer_path": "lib/contracts_client/work_item_created.dart",
+      "via": "gen-dart-client emits this file from the IR; reserved for the SSE consumer slice",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
+      "planned": true
     }
   ],
   "ci_gates": [

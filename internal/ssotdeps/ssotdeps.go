@@ -48,6 +48,10 @@ type ConsumptionLink struct {
 	ConsumerPath string `json:"consumer_path"`
 	Via          string `json:"via,omitempty"`
 	Guard        string `json:"guard,omitempty"`
+	// Planned: the consumer file does not exist yet (generator hasn't run in
+	// the sibling repo). Verify skips the existence check so the dep map can
+	// record the dependency before the file lands.
+	Planned bool `json:"planned,omitempty"`
 }
 
 type CIGate struct {
@@ -100,6 +104,9 @@ func Verify(root string, m *Map) []error {
 	for i, l := range m.ConsumptionLinks {
 		if !ids[l.SSOT] {
 			errs = append(errs, fmt.Errorf("consumption_links[%d].ssot %q: not in ssot_artifacts", i, l.SSOT))
+		}
+		if l.Planned {
+			continue
 		}
 		if l.ConsumerRepo == "agent-cluster-contracts" {
 			if err := mustExist(root, l.ConsumerPath); err != nil {
