@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -185,7 +185,7 @@
         "backend declares `type Task struct {...}` ad-hoc to mean what contracts calls WorkItem — NOT OK.",
         "frontend renames `WorkItem` to `Job` in UI state — NOT OK."
       ],
-      "guard_candidate": { "tool": "ssotdeps verify (cross-repo vocab scan)", "status": "pending" },
+      "guard_candidate": { "tool": "vocablint (D014) — scans for type/class declarations matching IR aggregate/event names outside generated client paths. Runs in contracts.yml and in each consumer repo's contracts-drift.yml.", "status": "implemented" },
       "decision": "001-initial-agreement"
     },
     {

@@ -1,5 +1,5 @@
 {
-  "version": "0.11.0",
+  "version": "0.12.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -121,6 +121,13 @@
       "id": "probe-tool",
       "kind": "verifier",
       "path": "tools/probe/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "vocablint-tool",
+      "kind": "verifier",
+      "path": "tools/vocablint/main.go",
       "schema": null,
       "owned_by": "agent-cluster-contracts"
     },
@@ -323,6 +330,22 @@
       "consumer_path": ".github/workflows/contracts-drift.yml",
       "via": "frontend's contracts-drift workflow clones contracts, builds wirelint, runs it against frontend/ with --exclude lib/contracts_client. Catches hand-typed GraphQL wire literals (C-006).",
       "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
+    },
+    {
+      "ssot": "vocablint-tool",
+      "consumer_repo": "agent-cluster-backend",
+      "consumer_path": ".github/workflows/contracts-drift.yml",
+      "via": "backend's contracts-drift workflow clones contracts, builds vocablint, runs it against backend/ with --exclude internal/contracts. Catches Go type redeclarations of IR aggregate/event names (C-001).",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
+      "planned": true
+    },
+    {
+      "ssot": "vocablint-tool",
+      "consumer_repo": "agent-cluster-frontend",
+      "consumer_path": ".github/workflows/contracts-drift.yml",
+      "via": "frontend's contracts-drift workflow clones contracts, builds vocablint, runs it against frontend/ with --exclude lib/contracts_client. Catches Dart class redeclarations of IR aggregate/event names (C-001).",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
+      "planned": true
     }
   ],
   "ci_gates": [
@@ -347,7 +370,8 @@
         "ir-schema",
         "wirelint-tool",
         "agent-roles-schema",
-        "ssot-dep-map-schema"
+        "ssot-dep-map-schema",
+        "vocablint-tool"
       ]
     },
     {

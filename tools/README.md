@@ -20,6 +20,7 @@ go build -o bin/ ./tools/...
 | [gen-go-client](#gen-go-client)   | (default)                              | **no — forbidden_paths include tools/**             | yes |
 | [gen-dart-client](#gen-dart-client) | (default)                            | **no**                                              | yes |
 | [wirelint](#wirelint)        | (default)                                  | yes (read-only)                                     | n/a |
+| [vocablint](#vocablint)      | (default)                                  | yes (read-only)                                     | n/a |
 
 Tools marked **dumb-agent may run** can be executed from a dumb-agent's
 preflight/postflight scripts. Tools that write to `agent-roles.riido.json`,
@@ -247,6 +248,31 @@ etc.), binary extensions, and files larger than 1 MiB. Append
 `wirelint:ignore` on any line to suppress matches there (used in tests
 and documentation that intentionally reference a wire name).
 
+## vocablint
+
+Executable enforcement of constraint **C-001** (no repo other than
+agent-cluster-contracts may redefine a domain vocabulary term).
+Introduced by decision 014. Same shape as wirelint but for type/class
+declarations instead of string literals.
+
+```sh
+./bin/vocablint --ir-dir <contracts/ir/domain> --root <tree> [--exclude DIR,DIR2] [--json]
+```
+
+Loads Pascal-cased names from IR (kind=aggregate, kind=event). Per-
+language detection: Go (`type X struct/interface/=`), Dart
+(`class X` / `abstract class X`). Word-boundary aware — `WorkItemBuilder`
+does NOT trip the `WorkItem` check.
+
+Used by:
+
+- contracts.yml (self-scan with the contracts-internal exclusions);
+- agent-cluster-backend `contracts-drift.yml` (`--exclude internal/contracts`);
+- agent-cluster-frontend `contracts-drift.yml` (`--exclude lib/contracts_client`).
+
+Same skip rules as wirelint. Append `vocablint:ignore` on any line to
+suppress matches (used in tests and intentional aliases).
+
 ---
 
 ## Where each tool's source lives
@@ -265,3 +291,4 @@ and documentation that intentionally reference a wire name).
 | gen-go-client   | `tools/gen-go-client/main.go`   + `internal/codegen/` |
 | gen-dart-client | `tools/gen-dart-client/main.go` + `internal/codegen/` |
 | wirelint        | `tools/wirelint/main.go`        + `internal/wirelint/` |
+| vocablint       | `tools/vocablint/main.go`       + `internal/vocablint/` |

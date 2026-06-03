@@ -73,3 +73,6 @@ jobs:
 
       - name: wirelint — enforce constraint C-006 inside contracts
         run: ./bin/wirelint --root . --exclude dsl,ir,fixtures,fuzz,reports,internal/probe,internal/wirelint,tools/wirelint
+
+      - name: vocablint — enforce constraint C-001 inside contracts (decision 014)
+        run: ./bin/vocablint --root . --exclude dsl,ir,fixtures,fuzz,reports,internal/probe,internal/vocablint,internal/wirelint,tools/vocablint,tools/wirelint
