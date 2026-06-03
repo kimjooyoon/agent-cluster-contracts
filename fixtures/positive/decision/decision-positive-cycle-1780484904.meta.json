@@ -4,5 +4,5 @@
   "expected": "pass",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "Ensure a canonical accepted decision fixture validates successfully"
+  "purpose": "Ensure a unique accepted decision fixture validates successfully"
 }
