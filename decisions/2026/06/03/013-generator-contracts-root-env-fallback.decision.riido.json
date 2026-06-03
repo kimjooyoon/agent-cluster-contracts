@@ -1,0 +1,46 @@
+{
+  "id": "013-generator-contracts-root-env-fallback",
+  "title": "gen-go-client/gen-dart-client: AGENT_CLUSTER_CONTRACTS env var fallback (backlog #5 ergonomics)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "003-first-vertical-slice"
+    },
+    {
+      "kind": "file",
+      "ref": "tools/gen-go-client/main.go"
+    },
+    {
+      "kind": "file",
+      "ref": "tools/gen-dart-client/main.go"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal continuing ssot improvement"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Env var must point at an actual contracts checkout (must contain ssot-dependency-map.riido.json). Otherwise an informative error is returned",
+    "never a wrong path."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

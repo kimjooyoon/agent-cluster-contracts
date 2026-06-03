@@ -198,6 +198,19 @@ target dir. Output is the canonical generated client for
 `agent-cluster-backend`. Backend's `contracts-drift.yml` re-runs this in
 CI and diffs against committed files.
 
+**Auto-detect (decision 013)**: `--ir-dir` is optional. From inside the
+contracts repo, the tool walks up to find `ssot-dependency-map.riido.json`.
+From sibling repos (backend/, frontend/), set `AGENT_CLUSTER_CONTRACTS`
+to the contracts checkout:
+
+```sh
+export AGENT_CLUSTER_CONTRACTS=../contracts
+./bin/gen-go-client --out-dir internal/contracts
+```
+
+If neither resolves, the tool prints an informative error mentioning the
+env var.
+
 ## gen-dart-client
 
 ```sh
@@ -207,6 +220,9 @@ CI and diffs against committed files.
 Same shape as gen-go-client but emits Dart classes for
 `agent-cluster-frontend`. Frontend's `contracts-drift.yml` re-runs this
 in CI and diffs against committed files.
+
+Same `AGENT_CLUSTER_CONTRACTS` auto-detect (decision 013) as
+gen-go-client when invoked from a sibling repo.
 
 ## wirelint
 
