@@ -64,3 +64,6 @@ jobs:
 
       - name: Probe baseline (sanity — should match the steps above)
         run: ./bin/probe preflight
+
+      - name: wirelint — enforce constraint C-006 inside contracts
+        run: ./bin/wirelint --root . --exclude dsl,ir,fixtures,fuzz,reports,internal/probe,internal/wirelint,tools/wirelint

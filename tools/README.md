@@ -19,6 +19,7 @@ go build -o bin/ ./tools/...
 | [probe](#probe)              | preflight, fixtures                         | **yes — start every PR with `probe preflight`** | n/a |
 | [gen-go-client](#gen-go-client)   | (default)                              | **no — forbidden_paths include tools/**             | yes |
 | [gen-dart-client](#gen-dart-client) | (default)                            | **no**                                              | yes |
+| [wirelint](#wirelint)        | (default)                                  | yes (read-only)                                     | n/a |
 
 Tools marked **dumb-agent may run** can be executed from a dumb-agent's
 preflight/postflight scripts. Tools that write to `agent-roles.riido.json`,
@@ -186,6 +187,29 @@ Same shape as gen-go-client but emits Dart classes for
 `agent-cluster-frontend`. Frontend's `contracts-drift.yml` re-runs this
 in CI and diffs against committed files.
 
+## wirelint
+
+Executable enforcement of constraint **C-006** — flags literal occurrences
+of any `kind=query` `wire_name` outside the generated-client paths.
+Introduced by decision 008.
+
+```sh
+./bin/wirelint --ir-dir <contracts/ir/domain> --root <tree> [--exclude DIR,DIR2] [--json]
+```
+
+Used by:
+
+- contracts.yml (self-scan with the contracts-internal exclusions);
+- agent-cluster-backend `contracts-drift.yml` (`--exclude internal/contracts`);
+- agent-cluster-frontend `contracts-drift.yml` (`--exclude lib/contracts_client`).
+
+Skip rules: files whose first 5 lines contain `Code generated` (the marker
+emitted by `gen-go-client` / `gen-dart-client`), common tool dirs
+(`.git`, `bin`, `vendor`, `node_modules`, `.dart_tool`, `build`, `Pods`,
+etc.), binary extensions, and files larger than 1 MiB. Append
+`wirelint:ignore` on any line to suppress matches there (used in tests
+and documentation that intentionally reference a wire name).
+
 ---
 
 ## Where each tool's source lives
@@ -203,3 +227,4 @@ in CI and diffs against committed files.
 | probe           | `tools/probe/main.go`           + `internal/probe/` |
 | gen-go-client   | `tools/gen-go-client/main.go`   + `internal/codegen/` |
 | gen-dart-client | `tools/gen-dart-client/main.go` + `internal/codegen/` |
+| wirelint        | `tools/wirelint/main.go`        + `internal/wirelint/` |
