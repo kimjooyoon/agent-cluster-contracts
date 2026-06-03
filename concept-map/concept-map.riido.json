@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -245,9 +245,9 @@
       ],
       "counterexamples": [
         "backend writes const supportedQuery = \"{ workItems { id title state } }\" with \"workItems\" as a literal — the wire identifier is duplicated outside SSOT and will drift.",
-        "frontend hardcodes 'workItems' in a GraphQL document string — same drift class."
+        "frontend hardcodes the wire literal in a GraphQL document string — same drift class. (Concrete wire name elided here so wirelint does not flag this counterexample; constraint C-006 applies to any IR-declared wire name.)"
       ],
-      "guard_candidate": { "tool": "contracts-drift workflow already catches changes to generated files; a future grep-based check could refuse literal occurrences of any generated query wire-name outside lib/contracts_client/ or internal/contracts/", "status": "pending" },
+      "guard_candidate": { "tool": "wirelint (tools/wirelint) — scans for quoted literal occurrences of any kind=query wire_name outside generated-client paths. Runs in contracts.yml and in each consumer repo's contracts-drift.yml.", "status": "implemented" },
       "decision": "006-ssot-extension-graphql-via-dsl"
     }
   ]

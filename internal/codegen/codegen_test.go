@@ -46,13 +46,17 @@ func TestSnake(t *testing.T) {
 
 func TestIRDocQueryShape(t *testing.T) {
 	// Decision 006: kind=query IR documents carry WireName + Returns.
+	// Test data uses a non-SSOT wire-name so wirelint (D008) does not flag
+	// this file as a C-006 violation — codegen tests must not couple to
+	// any real query name.
+	const testWire = "testWireName"
 	d := &IRDoc{
 		Kind:     "query",
-		Name:     "list-work-items",
-		WireName: "workItems",
+		Name:     "test-fixture",
+		WireName: testWire,
 		Returns:  &QueryReturns{Shape: "list", Type: "work-item"},
 	}
-	if d.WireName != "workItems" {
+	if d.WireName != testWire {
 		t.Errorf("WireName = %q", d.WireName)
 	}
 	if d.Returns == nil || d.Returns.Shape != "list" || d.Returns.Type != "work-item" {

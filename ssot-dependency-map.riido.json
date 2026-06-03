@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -135,6 +135,13 @@
       "id": "ir-schema",
       "kind": "schema",
       "path": "ir/schema/ir.schema.json",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "wirelint-tool",
+      "kind": "verifier",
+      "path": "tools/wirelint/main.go",
       "schema": null,
       "owned_by": "agent-cluster-contracts"
     }
@@ -288,6 +295,20 @@
       "consumer_path": "internal/probe/probe.go",
       "via": "internal/probe.validateIRDoc mirrors the structural rules of ir/schema/ir.schema.json in Go (no third-party JSON Schema validator). Used by probe fixtures for fixture_type ir-aggregate / ir-event / query.",
       "guard": "contracts.yml runs probe fixtures; any IR fixture that violates the schema fails"
+    },
+    {
+      "ssot": "wirelint-tool",
+      "consumer_repo": "agent-cluster-backend",
+      "consumer_path": ".github/workflows/contracts-drift.yml",
+      "via": "backend's contracts-drift workflow clones contracts, builds wirelint, runs it against backend/ with --exclude internal/contracts. Catches hand-typed GraphQL wire literals (C-006).",
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
+    },
+    {
+      "ssot": "wirelint-tool",
+      "consumer_repo": "agent-cluster-frontend",
+      "consumer_path": ".github/workflows/contracts-drift.yml",
+      "via": "frontend's contracts-drift workflow clones contracts, builds wirelint, runs it against frontend/ with --exclude lib/contracts_client. Catches hand-typed GraphQL wire literals (C-006).",
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
     }
   ],
   "ci_gates": [
@@ -309,7 +330,8 @@
         "environment-blockers-dir",
         "dsl-list-work-items",
         "ir-list-work-items",
-        "ir-schema"
+        "ir-schema",
+        "wirelint-tool"
       ]
     },
     {

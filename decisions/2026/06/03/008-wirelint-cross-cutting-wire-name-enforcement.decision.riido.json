@@ -1,0 +1,53 @@
+{
+  "id": "008-wirelint-cross-cutting-wire-name-enforcement",
+  "title": "wirelint: executable cross-repo enforcement of GraphQL wire-name SSOT (constraint C-006)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "ci",
+      "backend",
+      "frontend"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "006-ssot-extension-graphql-via-dsl"
+    },
+    {
+      "kind": "decision",
+      "ref": "007-agent-roles-glob-fix-and-ir-schema-and-ir-fixture-types"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal continuing ssot improvement"
+    },
+    {
+      "kind": "file",
+      "ref": "ssot-dependency-map.riido.json"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts",
+    "agent-cluster-backend",
+    "agent-cluster-frontend"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "wirelint loads every wire_name from ir/domain/*.ir.json (kind=query), then scans the target tree for quoted literal occurrences. Hits outside generated-client paths (backend/internal/contracts/, frontend/lib/contracts_client/) fail CI. C-006 was constraint-level until now; D008 makes it executable.",
+    "backend contracts-drift.yml clones contracts, builds wirelint, runs: wirelint --root backend --exclude internal/contracts. A hand-typed literal of any GraphQL wire identifier outside internal/contracts/ would fail. Same pattern for frontend with --exclude lib/contracts_client.",
+    "Generated-file detection: any file whose first 5 lines contain the substring 'Code generated' is skipped (gen-go-client and gen-dart-client emit this header). Binary extensions (.png, .pdf, .ico, etc.), .git/, bin/, vendor/, node_modules/, .dart_tool/, build/ are also skipped.",
+    "Empty IR (no kind=query docs) → wirelint exits OK without scanning. Bootstrap repos remain green until the first query is added to DSL."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
