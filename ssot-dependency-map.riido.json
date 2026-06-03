@@ -137,14 +137,12 @@
     {
       "repo": "agent-cluster-backend",
       "workflow": ".github/workflows/security.yml",
-      "verifies": ["raw-secret patterns in working tree"],
-      "planned": true
+      "verifies": ["raw-secret patterns in working tree"]
     },
     {
       "repo": "agent-cluster-frontend",
       "workflow": ".github/workflows/security.yml",
-      "verifies": ["raw-secret patterns in working tree"],
-      "planned": true
+      "verifies": ["raw-secret patterns in working tree"]
     }
   ],
   "pending": [
