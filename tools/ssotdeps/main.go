@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/findroot"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/ssotdeps"
 )
@@ -22,6 +23,8 @@ func main() {
 		cmdVerify(os.Args[2:])
 	case "validate":
 		cmdValidate(os.Args[2:])
+	case "cross-check":
+		cmdCrossCheck(os.Args[2:])
 	case "show":
 		cmdShow(os.Args[2:])
 	case "-h", "--help", "help":
@@ -109,6 +112,40 @@ func cmdValidate(args []string) {
 	}
 }
 
+func cmdCrossCheck(args []string) {
+	fs := flag.NewFlagSet("cross-check", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "JSON output")
+	fs.Parse(args)
+	root, err := findroot.FromCWD()
+	if err != nil {
+		die(err)
+	}
+	m, err := ssotdeps.Load(root)
+	if err != nil {
+		die(err)
+	}
+	cm, err := conceptmap.Load(root)
+	if err != nil {
+		die(err)
+	}
+	errs := ssotdeps.CrossCheck(m, cm)
+	if *asJSON {
+		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": len(errs) == 0, "errors": errMsgs(errs)})
+	} else {
+		if len(errs) == 0 {
+			fmt.Printf("ssotdeps cross-check: OK (%d pending entries, none reference implemented constraints)\n", len(m.Pending))
+		} else {
+			fmt.Fprintf(os.Stderr, "ssotdeps cross-check: %d stale reference(s)\n", len(errs))
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, "  -", e)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		os.Exit(1)
+	}
+}
+
 func cmdShow(args []string) {
 	root, err := findroot.FromCWD()
 	if err != nil {
@@ -146,6 +183,11 @@ Commands:
                     ssot-dependency-map.schema.json (mirrored by ValidateMap).
                     Catches typos and structural issues that JSON parse alone
                     silently accepts. Exit 1 on schema violations.
+  cross-check [--json]
+                    Cross-check pending[] against concept-map: any pending entry
+                    that mentions an already-implemented constraint id (C-XXX)
+                    is stale and must be removed. Decision 022. Exit 1 on
+                    stale references.
   show              Print the loaded dep map as JSON.`)
 }
 

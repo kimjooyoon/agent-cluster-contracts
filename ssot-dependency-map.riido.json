@@ -1,5 +1,5 @@
 {
-  "version": "0.12.0",
+  "version": "0.13.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -336,16 +336,14 @@
       "consumer_repo": "agent-cluster-backend",
       "consumer_path": ".github/workflows/contracts-drift.yml",
       "via": "backend's contracts-drift workflow clones contracts, builds vocablint, runs it against backend/ with --exclude internal/contracts. Catches Go type redeclarations of IR aggregate/event names (C-001).",
-      "guard": "contracts-drift.yml workflow in agent-cluster-backend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-backend"
     },
     {
       "ssot": "vocablint-tool",
       "consumer_repo": "agent-cluster-frontend",
       "consumer_path": ".github/workflows/contracts-drift.yml",
       "via": "frontend's contracts-drift workflow clones contracts, builds vocablint, runs it against frontend/ with --exclude lib/contracts_client. Catches Dart class redeclarations of IR aggregate/event names (C-001).",
-      "guard": "contracts-drift.yml workflow in agent-cluster-frontend",
-      "planned": true
+      "guard": "contracts-drift.yml workflow in agent-cluster-frontend"
     }
   ],
   "ci_gates": [
@@ -404,7 +402,6 @@
     }
   ],
   "pending": [
-    "Generation links for backend GraphQL schema and frontend client (added with first product slice past the bootstrap).",
-    "Cross-repo vocab scan (constraint C-001 enforcement)."
+    "Generation links for backend GraphQL schema and frontend client (added with first product slice past the bootstrap)."
   ]
 }

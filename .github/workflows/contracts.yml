@@ -56,6 +56,9 @@ jobs:
       - name: Validate SSOT dep map schema (decision 011)
         run: ./bin/ssotdeps validate
 
+      - name: Cross-check dep map pending vs concept-map status (decision 022)
+        run: ./bin/ssotdeps cross-check
+
       - name: Validate concept map
         run: ./bin/conceptmap verify
 

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 )
 
 func TestModeLocalSkipsSiblingConsumers(t *testing.T) {
@@ -88,6 +90,54 @@ func TestBothModesFailOnLocalArtifact(t *testing.T) {
 		if !found {
 			t.Errorf("mode=%s: error should mention nope.json, got %v", mode, errs)
 		}
+	}
+}
+
+func TestCrossCheckFlagsImplementedPending(t *testing.T) {
+	impl := "implemented"
+	pend := "pending"
+	cm := &conceptmap.Map{
+		Constraints: []conceptmap.Constraint{
+			{ID: "C-001", GuardCandidate: &conceptmap.GuardCand{Tool: "vocablint", Status: impl}},
+			{ID: "C-099", GuardCandidate: &conceptmap.GuardCand{Tool: "future", Status: pend}},
+		},
+	}
+	cases := []struct {
+		name     string
+		pending  []string
+		wantHits int
+	}{
+		{"empty", nil, 0},
+		{"no constraint refs", []string{"Generation links for later product slice."}, 0},
+		{"references implemented constraint", []string{"Cross-repo vocab scan (constraint C-001 enforcement)."}, 1},
+		{"references still-pending constraint is OK", []string{"Future work on C-099."}, 0},
+		{"mixed entries", []string{
+			"Generation links for backend GraphQL schema and frontend client.",
+			"Cross-repo vocab scan (constraint C-001 enforcement).",
+			"Future work on C-099.",
+		}, 1},
+		{"multiple stale refs in one entry counted independently", []string{"C-001 and C-001 mentioned twice."}, 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := &Map{Pending: tc.pending}
+			errs := CrossCheck(m, cm)
+			if len(errs) != tc.wantHits {
+				t.Errorf("CrossCheck: got %d errors, want %d. errors=%v", len(errs), tc.wantHits, errs)
+			}
+		})
+	}
+}
+
+func TestCrossCheckTolerantOfNilInputs(t *testing.T) {
+	if errs := CrossCheck(nil, nil); len(errs) != 0 {
+		t.Errorf("nil inputs: want 0 errors, got %v", errs)
+	}
+	if errs := CrossCheck(&Map{Pending: []string{"C-001"}}, nil); len(errs) != 0 {
+		t.Errorf("nil concept map: want 0 errors (cannot decide), got %v", errs)
+	}
+	if errs := CrossCheck(nil, &conceptmap.Map{}); len(errs) != 0 {
+		t.Errorf("nil dep map: want 0 errors, got %v", errs)
 	}
 }
 

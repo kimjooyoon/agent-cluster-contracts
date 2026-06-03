@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/kimjooyoon/agent-cluster-contracts/internal/conceptmap"
 	"github.com/kimjooyoon/agent-cluster-contracts/internal/jsonutil"
 )
 
@@ -292,6 +293,41 @@ func mustExist(base, rel string) error {
 	}
 	return nil
 }
+
+// CrossCheck catches semantic drift between the dep map and the concept map
+// that path-existence checks cannot see. Specifically: if the dep map's
+// `pending` array still mentions constraint C-XXX that the concept map already
+// marks as implemented, the pending entry is stale and must be removed.
+//
+// Decision 022 introduced this check after C-001's cross-repo vocablint
+// deployment (D014) shipped, but the dep map kept the "Cross-repo vocab scan
+// (constraint C-001 enforcement)" line and two planned:true links for ~8
+// decisions. SSOT honesty: when the work is done, the planning artifact must
+// say so.
+//
+// Returns one error per stale mention; empty slice means OK.
+func CrossCheck(m *Map, cm *conceptmap.Map) []error {
+	if m == nil || cm == nil {
+		return nil
+	}
+	implemented := map[string]bool{}
+	for _, c := range cm.Constraints {
+		if c.GuardCandidate != nil && c.GuardCandidate.Status == "implemented" {
+			implemented[c.ID] = true
+		}
+	}
+	var errs []error
+	for i, p := range m.Pending {
+		for _, id := range cidRefRe.FindAllString(p, -1) {
+			if implemented[id] {
+				errs = append(errs, fmt.Errorf("pending[%d] mentions %s which is implemented in concept-map — remove the stale entry. Pending text: %q", i, id, p))
+			}
+		}
+	}
+	return errs
+}
+
+var cidRefRe = regexp.MustCompile(`C-[0-9]{3}`)
 
 // siblingRoot maps "agent-cluster-backend" → "<parent-of-root>/backend" and
 // "agent-cluster-frontend" → "<parent-of-root>/frontend". The local checkout

@@ -1,0 +1,62 @@
+{
+  "id": "022-ssotdeps-cross-check",
+  "title": "ssotdeps cross-check guards pending vs implemented constraint drift",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "ssot-dependency-map.riido.json carried Cross-repo vocab scan in pending and planned:true on both vocablint links from D014 through D021 (drift survived 8 decisions)"
+    },
+    {
+      "kind": "file",
+      "ref": "backend/.github/workflows/contracts-drift.yml — runs vocablint at lines 72-78"
+    },
+    {
+      "kind": "file",
+      "ref": "frontend/.github/workflows/contracts-drift.yml — runs vocablint at lines 74-80"
+    },
+    {
+      "kind": "decision",
+      "ref": "014-vocablint — actually shipped vocablint to both siblings; the dep map's pending entry has been false since this decision merged"
+    },
+    {
+      "kind": "decision",
+      "ref": "019-cleanup-c002-guard-status — same SSOT-honesty class as D022 but human-only cleanup; D022 adds the mechanical guard"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "tools/ssotdeps cross-check",
+      "status": "implemented"
+    },
+    {
+      "kind": "github-action",
+      "ref": ".github/workflows/contracts.yml — Cross-check dep map pending vs concept-map status (decision 022)",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/ssotdeps/ssotdeps_test.go TestCrossCheckFlagsImplementedPending — covers the exact pre-cleanup drift case plus nil-tolerance and false-positive guards",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Before D022: pending=['Cross-repo vocab scan (constraint C-001 enforcement).'] and C-001 status=implemented → cross-check returns 1 stale reference, CI red. After D022 cleanup: pending no longer references C-001 → cross-check returns 0, CI green.",
+    "If a future constraint C-NNN flips to implemented but the author forgets to clear a pending entry mentioning it, CI fails immediately rather than letting the dep map drift for weeks."
+  ],
+  "counterexamples": [
+    "Pending entry that mentions a constraint id which is still pending (status=pending) is OK — that's the legitimate use of pending[].",
+    "Pending entry with no constraint reference (e.g. 'Generation links for backend GraphQL schema and frontend client.') is unaffected — no C-XXX mention to cross-check."
+  ],
+  "created_at": "2026-06-03"
+}
