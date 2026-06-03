@@ -3,5 +3,6 @@
   "verifier": "work-item ir validation",
   "expected": "fail",
   "from_role": "dumb-agent",
-  "supersedes": null
+  "supersedes": null,
+  "purpose": "work item invalid missing required"
 }

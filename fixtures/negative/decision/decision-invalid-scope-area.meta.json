@@ -4,5 +4,6 @@
   "expected": "fail",
   "from_role": "dumb-agent",
   "expected_error_contains": "scope.areas",
-  "supersedes": null
+  "supersedes": null,
+  "purpose": "decision invalid scope area"
 }

@@ -3,6 +3,7 @@ package probe
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -52,7 +53,7 @@ func TestFixturesPositiveDecisionPasses(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "fixtures/positive/decision/min.json"), validDecisionJSON())
 	write(t, filepath.Join(root, "fixtures/positive/decision/min.meta.json"),
-		`{"fixture_type":"decision","expected":"pass"}`)
+		`{"fixture_type":"decision","expected":"pass","purpose":"minimal valid decision"}`)
 
 	res, err := VerifyFixtures(root)
 	if err != nil {
@@ -72,7 +73,7 @@ func TestFixturesNegativeDecisionFailsAsExpected(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/negative/decision/no-title.json"),
 		`{"id":"999-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/no-title.meta.json"),
-		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"title"}`)
+		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"title","purpose":"decision missing title field"}`)
 
 	res, err := VerifyFixtures(root)
 	if err != nil {
@@ -88,7 +89,7 @@ func TestFixturesNegativeMissingExpectedSubstringFails(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/negative/decision/bad.json"),
 		`{"id":"999-x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
 	write(t, filepath.Join(root, "fixtures/negative/decision/bad.meta.json"),
-		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"this-string-not-present"}`)
+		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"this-string-not-present","purpose":"test bad expected substring"}`)
 	res, _ := VerifyFixtures(root)
 	if res.OK {
 		t.Errorf("expected failure when expected_error_contains is missing from actual error, got OK")
@@ -102,7 +103,7 @@ func TestFixturesPositiveThatAccidentallyFailsFlagsGap(t *testing.T) {
 	// commit broken positive fixtures.
 	write(t, filepath.Join(root, "fixtures/positive/decision/broken.json"), `{"id":"missing","status":"accepted"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/broken.meta.json"),
-		`{"fixture_type":"decision","expected":"pass"}`)
+		`{"fixture_type":"decision","expected":"pass","purpose":"intentionally broken positive"}`)
 	res, _ := VerifyFixtures(root)
 	if res.OK {
 		t.Errorf("expected failure on broken positive fixture, got OK")
@@ -123,7 +124,7 @@ func TestFixturesUnsupportedTypeRejected(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "fixtures/positive/work-item/x.json"), `{}`)
 	write(t, filepath.Join(root, "fixtures/positive/work-item/x.meta.json"),
-		`{"fixture_type":"unknown-type","expected":"pass"}`)
+		`{"fixture_type":"unknown-type","expected":"pass","purpose":"unsupported fixture_type test"}`)
 	res, _ := VerifyFixtures(root)
 	if res.OK {
 		t.Errorf("expected failure on unsupported fixture_type, got OK")
@@ -162,7 +163,7 @@ func TestFixturesIRAggregatePositivePasses(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "fixtures/positive/work-item/min.json"), validIRAggregateJSON())
 	write(t, filepath.Join(root, "fixtures/positive/work-item/min.meta.json"),
-		`{"fixture_type":"ir-aggregate","expected":"pass"}`)
+		`{"fixture_type":"ir-aggregate","expected":"pass","purpose":"minimal valid ir aggregate"}`)
 	res, err := VerifyFixtures(root)
 	if err != nil {
 		t.Fatal(err)
@@ -178,7 +179,7 @@ func TestFixturesIRAggregateNegativeMissingSlotsFails(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/negative/work-item/no-slots.json"),
 		`{"kind":"aggregate","name":"x","slots":[],"source":{"dsl_file":"dsl/x.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`)
 	write(t, filepath.Join(root, "fixtures/negative/work-item/no-slots.meta.json"),
-		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"at least one slot"}`)
+		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"at least one slot","purpose":"ir aggregate with empty slots"}`)
 	res, _ := VerifyFixtures(root)
 	if !res.OK {
 		t.Errorf("expected OK (negative IR aggregate failed as expected): %+v", res.Checks)
@@ -190,7 +191,7 @@ func TestFixturesIRAggregateKindMismatchFails(t *testing.T) {
 	// Document is a query but meta promises ir-aggregate.
 	write(t, filepath.Join(root, "fixtures/positive/x/bad.json"), validIRQueryJSON())
 	write(t, filepath.Join(root, "fixtures/positive/x/bad.meta.json"),
-		`{"fixture_type":"ir-aggregate","expected":"pass"}`)
+		`{"fixture_type":"ir-aggregate","expected":"pass","purpose":"meta lies about kind"}`)
 	res, _ := VerifyFixtures(root)
 	if res.OK {
 		t.Errorf("expected failure when meta promises ir-aggregate but doc kind is query, got OK")
@@ -201,10 +202,87 @@ func TestFixturesQueryPositivePasses(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, "fixtures/positive/query/list.json"), validIRQueryJSON())
 	write(t, filepath.Join(root, "fixtures/positive/query/list.meta.json"),
-		`{"fixture_type":"query","expected":"pass"}`)
+		`{"fixture_type":"query","expected":"pass","purpose":"minimal valid query"}`)
 	res, _ := VerifyFixtures(root)
 	if !res.OK {
 		t.Errorf("expected OK, got %+v", res.Checks)
+	}
+}
+
+// Decision 015 — purpose required + dedup.
+
+func TestFixturesMissingPurposeRejected(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.meta.json"),
+		`{"fixture_type":"decision","expected":"pass"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected failure when meta.purpose missing, got OK")
+	}
+	hasReason := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "purpose required") {
+			hasReason = true
+		}
+	}
+	if !hasReason {
+		t.Errorf("expected 'purpose required' reason, got %+v", res.Checks)
+	}
+}
+
+func TestFixturesEmptyPurposeRejected(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/x.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"   "}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected failure when meta.purpose is whitespace-only, got OK")
+	}
+}
+
+func TestFixturesDuplicatePurposeRejected(t *testing.T) {
+	root := t.TempDir()
+	// Two positive decision fixtures with the SAME purpose but different
+	// id/title content — the cycle-fixture noise pattern. Decision 015 says
+	// the second one is a violation regardless of content differences.
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"minimal valid decision"}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/b.json"),
+		`{"id":"999-other","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/b.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"minimal valid decision"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected failure when two positive decisions share purpose, got OK")
+	}
+	dup := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "duplicate purpose") {
+			dup = true
+		}
+	}
+	if !dup {
+		t.Errorf("expected 'duplicate purpose' reason, got %+v", res.Checks)
+	}
+}
+
+func TestFixturesSamePurposeAcrossCategoriesAllowed(t *testing.T) {
+	root := t.TempDir()
+	// Positive and negative fixtures can share a purpose — they're in
+	// different categories so they test different surfaces.
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"required field coverage"}`)
+	write(t, filepath.Join(root, "fixtures/negative/decision/b.json"),
+		`{"id":"999-no-title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":[]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+	write(t, filepath.Join(root, "fixtures/negative/decision/b.meta.json"),
+		`{"fixture_type":"decision","expected":"fail","expected_error_contains":"title","purpose":"required field coverage"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK (different categories), got %+v", res.Checks)
 	}
 }
 
@@ -214,7 +292,7 @@ func TestFixturesIRAggregateRejectsExtraQueryFields(t *testing.T) {
 	write(t, filepath.Join(root, "fixtures/negative/x/bad.json"),
 		`{"kind":"aggregate","name":"x","slots":[{"name":"id","type":"string","required":true}],"wire_name":"oops","source":{"dsl_file":"dsl/x.lisp","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}`)
 	write(t, filepath.Join(root, "fixtures/negative/x/bad.meta.json"),
-		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"must not declare wire_name"}`)
+		`{"fixture_type":"ir-aggregate","expected":"fail","expected_error_contains":"must not declare wire_name","purpose":"aggregate with stray wire_name"}`)
 	res, _ := VerifyFixtures(root)
 	if !res.OK {
 		t.Errorf("expected OK (negative caught extra wire_name): %+v", res.Checks)
@@ -226,7 +304,7 @@ func TestFixturesCategoryDirectoryEnforcesExpected(t *testing.T) {
 	// Drop a 'expected: pass' under negative/ — that's a meta/category mismatch
 	write(t, filepath.Join(root, "fixtures/negative/decision/x.json"), validDecisionJSON())
 	write(t, filepath.Join(root, "fixtures/negative/decision/x.meta.json"),
-		`{"fixture_type":"decision","expected":"pass"}`)
+		`{"fixture_type":"decision","expected":"pass","purpose":"category vs expected mismatch"}`)
 	res, _ := VerifyFixtures(root)
 	if res.OK {
 		t.Errorf("expected failure when negative/ contains expected=pass, got OK")
