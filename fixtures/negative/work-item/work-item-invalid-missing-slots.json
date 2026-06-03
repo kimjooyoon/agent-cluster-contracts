@@ -1,0 +1,14 @@
+{
+  "kind": "aggregate",
+  "name": "work-item",
+  "slots": [
+    {
+      "name": "id",
+      "required": true,
+      "type": "string"
+    }
+  ],
+  "source": {
+    "dsl_file": "dsl/domain/work-item.lisp"
+  }
+}
