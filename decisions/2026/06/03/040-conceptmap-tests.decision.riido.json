@@ -1,0 +1,45 @@
+{
+  "id": "040-conceptmap-tests",
+  "title": "Test coverage for internal/conceptmap (CI-bound, untested)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit found internal/conceptmap had no test file despite gating every PR via `conceptmap verify` in contracts.yml. Pattern regressions would only be caught if the existing concept-map.riido.json file happened to trigger them; new code paths or edge cases were untested"
+    },
+    {
+      "kind": "decision",
+      "ref": "039-secretscan-tests - same priority-order rationale (CI-bound + critical → test first); D040 extends to conceptmap"
+    },
+    {
+      "kind": "decision",
+      "ref": "036-bcs-enum - established the `validRecord()` helper idiom (each test flips one field) now mirrored as validMap() in conceptmap_test.go"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "test",
+      "ref": "internal/conceptmap/conceptmap_test.go - 14 tests covering Validate per-field rules (version, PascalCase, kind enum, owner enum, description+examples required, duplicate names, relationship referent-existence, relationship-kind enum, constraint id pattern, duplicate constraint ids, guard_candidate.status enum) + Query semantics (case-insensitive, unknown returns nil, rels mentioning name, constraints mentioning name in rule OR rationale)",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "TestValidateAcceptsMinimalMap proves the validMap() helper is itself valid (regression catch if a future schema change breaks the helper).",
+    "TestValidateRejectsBadVersion covers empty/short/extra-dots; documents that 'v1.2.3' currently PASSES (the check is just dot-count). Tightening is a separate decision.",
+    "TestValidateRejectsNonPascalConceptName documents that nameRe accepts all-uppercase 'DECISION' because the project has acronym-heavy names like IRSchema and GraphQLQuery. The test covers what IS rejected: lowercase start, hyphens, digit start, empty."
+  ],
+  "counterexamples": [
+    "4 untested internal/ packages remain (devpattern, irdrift, jsonutil, knowledge). irdrift is the next CI-bound priority; the others are operator-internal.",
+    "Tests document current behavior — they do NOT tighten Validate rules. Behavior changes (e.g. stricter version regex, stricter name regex) require their own decision because they could reject existing on-main concept names or version strings."
+  ],
+  "created_at": "2026-06-03"
+}
