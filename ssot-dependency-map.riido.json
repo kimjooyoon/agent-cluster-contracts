@@ -1,5 +1,5 @@
 {
-  "version": "0.13.0",
+  "version": "0.14.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -163,6 +163,13 @@
       "id": "wirelint-tool",
       "kind": "verifier",
       "path": "tools/wirelint/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "docfresh-tool",
+      "kind": "verifier",
+      "path": "tools/docfresh/main.go",
       "schema": null,
       "owned_by": "agent-cluster-contracts"
     }
@@ -369,7 +376,8 @@
         "wirelint-tool",
         "agent-roles-schema",
         "ssot-dep-map-schema",
-        "vocablint-tool"
+        "vocablint-tool",
+        "docfresh-tool"
       ]
     },
     {

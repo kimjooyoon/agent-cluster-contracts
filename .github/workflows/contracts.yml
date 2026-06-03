@@ -25,6 +25,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # docfresh check (D025) needs the base ref so `git diff
+          # origin/main...HEAD` works. fetch-depth: 0 fetches full history.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -79,3 +83,10 @@ jobs:
 
       - name: vocablint — enforce constraint C-001 inside contracts (decision 014)
         run: ./bin/vocablint --root . --exclude dsl,ir,fixtures,fuzz,reports,internal/probe,internal/vocablint,internal/wirelint,tools/vocablint,tools/wirelint
+
+      - name: docfresh — AGENT_CONTRACT.md must catch up with dumb-agent-visible decisions (D025)
+        # Runs only on PR events because it diffs against the base ref.
+        # On push-to-main runs the diff is trivially empty, so the check
+        # is a no-op there.
+        if: github.event_name == 'pull_request'
+        run: ./bin/docfresh check --base origin/${{ github.base_ref }}
