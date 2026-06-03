@@ -4,6 +4,6 @@
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "ir-aggregate with invalid source.sha256 \u2014 validator stops at sha check; despite filename, the data's name handling is not actually exercised (TODO follow-up)",
-  "expected_error_contains": "source.sha256"
+  "purpose": "ir-aggregate with slot.name=null \u2014 JSON unmarshals null to empty string; validator rejects with 'must be kebab-case'",
+  "expected_error_contains": "must be kebab-case"
 }

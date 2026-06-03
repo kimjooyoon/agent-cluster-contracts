@@ -1,0 +1,60 @@
+{
+  "id": "029-ir-schema-duplicate-slot-name",
+  "title": "IR schema rule: duplicate slot names within an aggregate or event are rejected",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Backlog item #12 from D027 — 4 work-item negative fixtures could not test what their filenames implied because the IR validator had no rule for duplicate-slot-name and 3 fixture data files were structurally wrong relative to their names; data also had fake 47-char sha that masked the intended error"
+    },
+    {
+      "kind": "decision",
+      "ref": "027-work-item-fixture-meta-correctness — D027 re-typed the meta but left the data fixes for a follow-up; D029 IS that follow-up"
+    },
+    {
+      "kind": "decision",
+      "ref": "007-agent-roles-glob-fix-and-ir-schema-and-ir-fixture-types — introduced the IR schema validator; D029 fills a missing rule from that decision's scope"
+    },
+    {
+      "kind": "file",
+      "ref": "fixtures/negative/work-item/work-item-invalid-duplicate-slot-name.json — first fixture to actually exercise the new duplicate-slot rule"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/probe.validateIRDoc — seenSlotNames map in the aggregate/event branch; reports first collision as 'slots[i].name <name>: duplicate of slots[j].name (slot names must be unique within an aggregate)'",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/probe/probe_test.go TestFixturesIRAggregateRejectsDuplicateSlotName + TestFixturesIRAggregateAcceptsUniqueSlotNames + TestFixturesIRAggregateRejectsTripleDuplicateSlotName",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-014 — codifies the rule; examples + counterexamples; guard_candidate pointer to validateIRDoc",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "work-item-invalid-duplicate-slot-name.json had two slots both named 'id'; with sha fixed to a real 64-hex value the validator now reports the duplicate-slot error and the fixture stops being a lie.",
+    "work-item-invalid-missing-required.json — sha fixed; source.dsl_file removed; validator reports 'source.dsl_file \"\": must match dsl/*.lisp' (an honest missing-required-field test on source.dsl_file).",
+    "work-item-invalid-missing-slots.json — sha fixed; slots changed to []; validator reports 'kind=aggregate requires at least one slot' (the existing D007 rule).",
+    "work-item-invalid-slot-name-null.json — sha fixed; data has slots[1].name = null which JSON unmarshals to empty string; validator reports 'slots[1].name \"\": must be kebab-case' (the existing rule, now actually reached)."
+  ],
+  "counterexamples": [
+    "Triple-duplicate slots[]: 3 slots all named 'id' — validator reports only the FIRST collision (slots[1] vs slots[0]); not a bug, the data is rejected once that's enough to fail.",
+    "kind=query unchanged: D029's duplicate-slot rule lives in the aggregate/event branch only; query has no slots."
+  ],
+  "created_at": "2026-06-03"
+}

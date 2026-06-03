@@ -4,6 +4,6 @@
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "ir-aggregate with invalid source.sha256 \u2014 validator rejects; despite filename, the data does not actually have a missing required field (TODO follow-up)",
-  "expected_error_contains": "source.sha256"
+  "purpose": "ir-aggregate with source.dsl_file field missing \u2014 validator rejects with 'must match dsl/*.lisp' (empty string fails the regex)",
+  "expected_error_contains": "source.dsl_file"
 }

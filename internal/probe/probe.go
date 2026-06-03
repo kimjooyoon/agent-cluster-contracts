@@ -694,12 +694,23 @@ func validateIRDoc(d *codegen.IRDoc, expectedKind string) []error {
 		if d.WireName != "" || d.Returns != nil {
 			errs = append(errs, fmt.Errorf("kind=%s must not declare wire_name or returns", d.Kind))
 		}
+		// D029: duplicate slot-name detection. Two slots with the same
+		// name within an aggregate are structurally meaningless —
+		// runtime can only honor one. Report the first collision.
+		seenSlotNames := map[string]int{}
 		for i, s := range d.Slots {
 			if !irKebabRe.MatchString(s.Name) {
 				errs = append(errs, fmt.Errorf("slots[%d].name %q: must be kebab-case", i, s.Name))
 			}
 			if s.Type == "" {
 				errs = append(errs, fmt.Errorf("slots[%d].type: required", i))
+			}
+			if s.Name != "" {
+				if prev, dup := seenSlotNames[s.Name]; dup {
+					errs = append(errs, fmt.Errorf("slots[%d].name %q: duplicate of slots[%d].name (slot names must be unique within an aggregate)", i, s.Name, prev))
+				} else {
+					seenSlotNames[s.Name] = i
+				}
 			}
 		}
 	case "query":

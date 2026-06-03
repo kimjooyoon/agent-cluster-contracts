@@ -1,5 +1,5 @@
 {
-  "version": "0.16.0",
+  "version": "0.17.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -370,6 +370,21 @@
       ],
       "guard_candidate": { "tool": "internal/docfresh.Check + tools/docfresh check (D025): runs in contracts.yml on PR events; diffs against the PR base ref and rejects when any added decision's guards reference a dumb-agent-visible rule but AGENT_CONTRACT.md is not in the diff", "status": "implemented" },
       "decision": "025-doc-freshness-guard"
+    },
+    {
+      "id": "C-014",
+      "rule": "Within an aggregate or event IR document, the names of slots must be globally unique. Two slots with the same name are structurally meaningless — runtime can only honor one — so probe fixtures rejects any such IR document, reporting the first collision as `slots[i].name \"<name>\": duplicate of slots[j].name`.",
+      "rationale": "The IR schema in v0.1 only enforced per-slot kebab-case and required-type; it silently accepted duplicate slot names. Backlog item #12 (D027 deferred) surfaced this: the work-item-invalid-duplicate-slot-name fixture could not actually test what its filename implied because the validator had no rule to fail on. D029 adds the missing schema rule and the fixture starts testing it for real.",
+      "examples": [
+        "fixtures/negative/work-item/work-item-invalid-duplicate-slot-name.json — 4 slots with two named 'id'; rejected with 'slots[2].name \"id\": duplicate of slots[0].name'.",
+        "Triple-duplicate test: 3 slots all named 'id' — validator reports the FIRST collision (slots[1] vs slots[0]); subsequent duplicates are not double-reported in the same pass."
+      ],
+      "counterexamples": [
+        "Aggregates with all-unique slot names continue to validate (canonical work-item.ir.json with id/title/state/created-at).",
+        "kind=query never had slots in v0.1 schema (kind=query must not declare slots); D029 leaves that rule unchanged."
+      ],
+      "guard_candidate": { "tool": "internal/probe.validateIRDoc — seenSlotNames map in the aggregate/event branch; reports first collision", "status": "implemented" },
+      "decision": "029-ir-schema-duplicate-slot-name"
     }
   ]
 }
