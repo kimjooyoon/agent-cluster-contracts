@@ -125,7 +125,7 @@ For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
   `expected: "fail"`; the actual validation error must contain
   `expected_error_contains` when set.
 
-#### Purpose rules (D015 + D017 + D018 + D020 + D023)
+#### Purpose rules (D015 + D017 + D018 + D020 + D023 + D026)
 
 `meta.purpose` is REQUIRED and is the field that decides whether your
 fixture adds coverage or is duplicate noise. Four layers of enforcement,
@@ -133,13 +133,20 @@ applied in order; the first one that rejects wins:
 
 1. **Non-empty (D015)**: `purpose` must be a non-empty, non-whitespace
    string. Missing purpose → fixture rejected.
-2. **Structural noise marker (D023)**: rejected on FIRST occurrence (no
-   banlist seeding required) when the **raw** purpose contains a
-   `cycle-N` token (regex `(?i)\bcycle[\s-]\d+\b`). Legitimate purposes
-   describe the rule being exercised, not the iteration that produced
-   the fixture. Also rejects decision fixtures whose data `id` starts
-   with `999-` (reserved do-not-use range — see "Fixture id convention"
-   below).
+2. **Structural noise marker (D023 + D026)**: rejected on FIRST
+   occurrence (no banlist seeding required) when a `cycle-N` token
+   (regex `(?i)\bcycle[\s-]\d+\b`) appears in ANY of:
+   - `meta.purpose` raw text (D023)
+   - the fixture filename (D026)
+   - the raw data file content — catches cycle-N in title, examples,
+     evidence.ref, anywhere (D026)
+   - the raw meta file content outside purpose (D026)
+
+   Also, for fixtures under `fixtures/*/decision/`, the data file's
+   `id` must match `^000-fixture-` (D026 — supersedes D023's narrower
+   999- ban). The 000-fixture- namespace is reserved for canonical
+   designer-authored fixtures; any other prefix is the dumb-agent
+   trying to look like a real decision (observed: 102-, 103-).
 3. **Unique after normalization (D015 + D017)**: probe fixtures compares
    `NormalizePurpose(purpose)`, not the raw string. Normalization strips
    `(<digits>)` (Unix timestamps in parens), `cycle N` tokens, bare 6+-digit
@@ -153,19 +160,20 @@ applied in order; the first one that rejects wins:
    decision — even if it's the only such fixture in the set. **Deleting
    the original does NOT reset the lockout.**
 
-##### Fixture id convention (D023)
+##### Fixture id convention (D023 + D026)
 
-Two id ranges are reserved inside `fixtures/`:
+For files under `fixtures/*/decision/`:
 
-- `000-fixture-*` — **use this** for canonical synthetic test fixtures
-  (e.g. `000-fixture-positive-minimal`, `000-fixture-negative-missing-owner`).
-- `999-*` — **never use** for any new decision fixture data file. The
-  noise-marker check rejects this prefix on sight to break a recurring
-  template-generator pattern.
+- `000-fixture-*` — **the only allowed id prefix** (D026 made this
+  exact, replacing D023's narrower 999- ban). Examples:
+  `000-fixture-positive-minimal`, `000-fixture-negative-missing-owner`.
+- Any other prefix (102-, 103-, 999-, 022-, …) — **rejected** as a
+  noise marker. The dumb-agent was observed using 102- and 103- to
+  look like real decisions; the whitelist eliminates that bypass.
 
 Real decision records (under `decisions/`) keep using the sequential
-`NNN-slug` numbering — only fixture data files are subject to the
-000-/999- split.
+`NNN-slug` numbering — only files under `fixtures/*/decision/` are
+restricted.
 
 To make `purpose` a meaningful coverage claim, write what the fixture's
 content distinguishes from existing fixtures. Examples of GOOD purposes:
@@ -182,11 +190,13 @@ Examples of BAD purposes (will be rejected):
   (banned, seeded by D020; wording variation of the D018 template)
 - `"Verify accepted decision fixture remains valid for top-down
   governance scope in cycle 40"` (rejected by D023 noise marker —
-  raw text contains `cycle 40`; rephrasing the wording does NOT help,
-  the rule fires on the literal `cycle-N` token)
+  raw text contains `cycle 40`)
 - `"Cycle 14 positive fixture"` (rejected by D023 noise marker on the
   raw `Cycle 14` token; would also normalize to "positive fixture" and
   trip layer 3 if the noise marker were absent)
+- A fixture with purpose scrubbed of cycle-N but `examples` containing
+  "for cycle 44" or filename containing `cycle-EPOCH` — D026 rejects
+  on data-content / filename scan even when the purpose is clean
 - `"Foo bar baz (1780485823)"` (timestamp stripped → "foo bar baz",
   matches every other fixture using the same template)
 

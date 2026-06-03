@@ -1,0 +1,61 @@
+{
+  "id": "026-stricter-noise-markers",
+  "title": "Harden noise-marker to scan filename + full data + meta + 000-fixture- id whitelist",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "After D023 merged the dumb-agent adapted via PRs #90 + #92 with ids 102-fixture-positive-cycle-EPOCH and 103-fixture-positive-cycle-EPOCH respectively; both bypassed D023's narrow purpose-only and 999-prefix checks by using real-looking 3-digit prefixes and moving the cycle-N markers into title/examples/filename"
+    },
+    {
+      "kind": "decision",
+      "ref": "023-fixture-noise-markers — D026 extends and supersedes its 999- id ban with the tighter ^000-fixture- whitelist; D023's purpose-cycle-N check remains in place as the first layer"
+    },
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-positive-cycle-1780492000.* — D023-era bypass; deleted in this PR"
+    },
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-positive-cycle-1780495000.* — D023-era bypass; deleted in this PR"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/probe.noiseMarkerReason — 5 layers: D023 purpose cycle-N; D026 filename cycle-N; D026 raw data content cycle-N; D026 raw meta content cycle-N; D026 decision fixture id whitelist ^000-fixture- (path-scoped, applies under fixtures/*/decision/ only)",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/probe/probe_test.go TestNoiseMarkerD026FilenameCycle + TestNoiseMarkerD026DataContentCycle + TestNoiseMarkerD026MetaContentCycleOutsidePurpose + TestNoiseMarkerD026StrictIDWhitelist (7 cases incl. real decision id rejection) + TestNoiseMarkerD026PathScopedIDRule (legacy work-item fixtures unaffected)",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-012 — extends rule and updates guard_candidate text to reflect the 5 layers and ^000-fixture- whitelist",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Cycle-44 fixture (PR #90, id 102-fixture-positive-cycle-1780492000): filename contains cycle-1780492000 → D026 filename layer rejects → no further layers needed.",
+    "Cycle-45 fixture (PR #92, id 103-fixture-positive-cycle-1780495000): same filename pattern, rejected the same way.",
+    "Hypothetical adapter that scrubs filename + purpose + examples but still uses id 102-fixture-X: rejected by the id-whitelist layer because 102- is not 000-fixture-.",
+    "Canonical fixture decision-valid-minimal.json with id 000-fixture-positive-minimal and purpose 'decision validator must accept a minimal record': passes all 5 layers."
+  ],
+  "counterexamples": [
+    "Legacy work-item fixtures under fixtures/*/work-item/ that mis-declare fixture_type=decision: the id-whitelist layer is path-scoped (anchored on `/fixtures/*/decision/` substring), so they are NOT subject to it. The mis-labeling is a separate backlog item.",
+    "Real decision records under decisions/ (e.g. 022-ssotdeps-cross-check) are unaffected — noiseMarkerReason only fires on files under fixtures/.",
+    "Future structural patterns (e.g. self-referencing evidence.ref pointing at the fixture's own path) can be added as a 6th layer via a superseding decision."
+  ],
+  "created_at": "2026-06-03"
+}
