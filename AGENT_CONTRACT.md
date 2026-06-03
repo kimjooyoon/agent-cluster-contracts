@@ -91,7 +91,8 @@ For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
     "expected": "pass" | "fail",
     "expected_error_category": "schema_violation" | "validation_error" | "..." (optional),
     "expected_error_contains": "substring the error must contain" (optional, when expected=fail),
-    "from_role": "dumb-agent"
+    "from_role": "dumb-agent",
+    "purpose": "what THIS fixture proves — must be unique and meaningful (D015, D017, D018, D020)"
   }
   ```
 - Supported `fixture_type` values (each extension was its own decision —
@@ -107,6 +108,49 @@ For each fixture under `fixtures/positive/**` or `fixtures/negative/**`:
 - negative fixture under `fixtures/negative/` must declare
   `expected: "fail"`; the actual validation error must contain
   `expected_error_contains` when set.
+
+#### Purpose rules (D015 + D017 + D018 + D020)
+
+`meta.purpose` is REQUIRED and is the field that decides whether your
+fixture adds coverage or is duplicate noise. Three layers of enforcement:
+
+1. **Non-empty (D015)**: `purpose` must be a non-empty, non-whitespace
+   string. Missing purpose → fixture rejected.
+2. **Unique after normalization (D015 + D017)**: probe fixtures compares
+   `NormalizePurpose(purpose)`, not the raw string. Normalization strips
+   `(<digits>)` (Unix timestamps in parens), `cycle N` tokens, bare 6+-digit
+   numbers, then lowercases. Two fixtures whose normalized purposes are
+   equal are duplicates within `(category, fixture_type)`, even if their
+   raw strings differ only by timestamp/cycle suffix. **Appending a
+   timestamp to fake uniqueness does NOT work.**
+3. **Not in banlist (D018 + D020 + future)**: `purpose-banlist.riido.json`
+   holds known noise templates. Any fixture whose normalized purpose
+   matches a banlist entry is rejected with a citation of the seeding
+   decision — even if it's the only such fixture in the set. **Deleting
+   the original does NOT reset the lockout.**
+
+To make `purpose` a meaningful coverage claim, write what the fixture's
+content distinguishes from existing fixtures. Examples of GOOD purposes:
+
+- `"decision missing scope field — verifier should report scope required"`
+- `"work-item aggregate with empty slots array — schema requires at least one"`
+- `"query result shape with returns-one instead of returns-list"`
+
+Examples of BAD purposes (will be rejected):
+
+- `"Ensure a unique accepted decision fixture validates successfully"`
+  (banned, seeded by D018; template restatement of "verifier passes")
+- `"Validate a unique accepted decision record in platform governance scope"`
+  (banned, seeded by D020; wording variation of the D018 template)
+- `"Cycle 14 positive fixture"` (normalizes to "positive fixture";
+  matches any other cycle's normalized purpose)
+- `"Foo bar baz (1780485823)"` (timestamp stripped → "foo bar baz",
+  matches every other fixture using the same template)
+
+When agentguard rejects a purpose, the rejection message cites either
+"duplicate purpose" or "banned purpose template — added by decision NNN".
+Both mean the same thing: declare a coverage claim that no other fixture
+already covers, not a wording variation of one.
 
 ### Step 5 — dry-run your diff
 

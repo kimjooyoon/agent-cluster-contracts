@@ -1,0 +1,54 @@
+{
+  "id": "021-agent-contract-doc-current-with-fixture-rules",
+  "title": "AGENT_CONTRACT.md updated with D015..D020 fixture purpose rules (SSOT mirror caught up)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "015-fixture-purpose-and-dedup"
+    },
+    {
+      "kind": "decision",
+      "ref": "017-fixture-purpose-normalized-dedup"
+    },
+    {
+      "kind": "decision",
+      "ref": "018-fixture-purpose-banlist"
+    },
+    {
+      "kind": "decision",
+      "ref": "020-extend-purpose-banlist-cycle-39"
+    },
+    {
+      "kind": "file",
+      "ref": "AGENT_CONTRACT.md"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 audit found D012 was last AGENT_CONTRACT edit"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Pure documentation refresh. No code change. Closes the SSOT-mirror gap: AGENT_CONTRACT.md is the human-readable mirror of agent-roles.riido.json + initial-agreement.md + fixture rules from D015..D020. If a dumb-agent reads AGENT_CONTRACT and follows it literally",
+    "it should be able to file a passing fixture."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
