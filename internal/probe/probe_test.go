@@ -670,32 +670,73 @@ func TestFixturesD030RejectsStructurallyIdenticalDecisionFixtures(t *testing.T) 
 	}
 	hit := false
 	for _, c := range res.Checks {
-		if strings.Contains(c.Reason, "duplicate canonical content (D030)") {
+		// D030 message format for negatives; D037 format for positives.
+		// This test uses positive fixtures so D037 fires.
+		if strings.Contains(c.Reason, "duplicate canonical content (D030)") ||
+			strings.Contains(c.Reason, "duplicate canonical content (D037)") {
 			hit = true
 		}
 	}
 	if !hit {
-		t.Errorf("expected 'duplicate canonical content (D030)' reason, got %+v", res.Checks)
+		t.Errorf("expected 'duplicate canonical content' reason from D030 or D037, got %+v", res.Checks)
 	}
 }
 
-func TestFixturesD030AcceptsStructurallyDifferentDecisionFixtures(t *testing.T) {
-	// Two fixtures whose structural content differs (different source,
-	// status, scope, etc.) must both pass — D030 must not over-reject.
+// D037 SUPERSEDES the D030 behavior this test originally asserted.
+// Under D030, two positive decision fixtures with different `source`
+// (or any other "structural" field) BOTH passed. Under D037, positive
+// decision fixtures dedup on the EMPTY canonical content — they all
+// exercise the same validator code path ("accept any schema-valid
+// record"), so the second is always noise. This test now asserts the
+// D037 rejection.
+func TestFixturesD037RejectsAnySecondPositiveDecisionFixture(t *testing.T) {
 	root := t.TempDir()
 	topDown := `{"id":"000-fixture-positive-top","title":"x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
-	bottomUp := `{"id":"000-fixture-positive-bot","title":"y","owner":"t","status":"accepted","source":"bottom_up","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
+	bottomUp := `{"id":"000-fixture-positive-bot","title":"y","owner":"t","status":"accepted","source":"bottom_up","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts","agent-cluster-backend"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
 	write(t, filepath.Join(root, "fixtures/positive/decision/td.json"), topDown)
 	write(t, filepath.Join(root, "fixtures/positive/decision/td.meta.json"),
 		`{"fixture_type":"decision","expected":"pass","purpose":"top-down source acceptance"}`)
 	write(t, filepath.Join(root, "fixtures/positive/decision/bu.json"), bottomUp)
 	write(t, filepath.Join(root, "fixtures/positive/decision/bu.meta.json"),
-		`{"fixture_type":"decision","expected":"pass","purpose":"bottom-up source acceptance"}`)
+		`{"fixture_type":"decision","expected":"pass","purpose":"bottom-up multi-repo acceptance"}`)
 	res, _ := VerifyFixtures(root)
-	if !res.OK {
-		t.Errorf("expected OK (different source fields are structurally distinct), got %+v", res.Checks)
+	if res.OK {
+		t.Errorf("expected D037 rejection of the second positive decision fixture, got OK")
+	}
+	hit := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "D030") || strings.Contains(c.Reason, "D037") {
+			hit = true
+		}
+	}
+	if !hit {
+		t.Errorf("expected D030/D037 dedup reason, got %+v", res.Checks)
 	}
 }
+
+// D037: confirms the exact bypass pattern observed in PR #105
+// (different affected_repos value) is caught.
+func TestFixturesD037CatchesAffectedReposBypass(t *testing.T) {
+	root := t.TempDir()
+	canonical := `{"id":"000-fixture-positive-min","title":"x","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`
+	bypass := `{"id":"000-fixture-positive-multi","title":"y","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":["platform"],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts","agent-cluster-backend"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["y"],"counterexamples":[],"created_at":"2026-06-03"}`
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.json"), canonical)
+	write(t, filepath.Join(root, "fixtures/positive/decision/a.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"original canonical"}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/b.json"), bypass)
+	write(t, filepath.Join(root, "fixtures/positive/decision/b.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"multi-repo affected"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("D037 should catch the affected_repos-variation bypass, got OK")
+	}
+}
+
+// (Test removed: negative-fixture coexistence is already covered by
+// the existing 6 negative work-item fixtures on main, each of which
+// declares a distinct expected_error_contains, exercises a distinct
+// rejection path, and ALL pass `probe fixtures` together. Adding a
+// synthetic test here repeats that signal.)
 
 func TestFixturesD030DoesNotApplyToNonDecisionFixtures(t *testing.T) {
 	// IR aggregate dedup is a follow-up; D030 must not fire on work-item.
@@ -730,8 +771,8 @@ func TestCanonicalDecisionContentHashIsDeterministic(t *testing.T) {
 	pb := filepath.Join(root, "b.json")
 	write(t, pa, a)
 	write(t, pb, b)
-	ha, errA := canonicalDecisionContentHash(pa)
-	hb, errB := canonicalDecisionContentHash(pb)
+	ha, errA := canonicalDecisionContentHash(pa, "negative")
+	hb, errB := canonicalDecisionContentHash(pb, "negative")
 	if errA != nil || errB != nil {
 		t.Fatalf("hash err: a=%v b=%v", errA, errB)
 	}
