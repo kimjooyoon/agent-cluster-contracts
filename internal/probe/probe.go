@@ -281,6 +281,36 @@ type FixtureCheck struct {
 	Reason   string `json:"reason"`
 }
 
+// purposeNormalizationStrip removes mechanical noise that an agent might
+// append to make duplicate purposes look unique. Decision 017 introduced
+// this. Stripped patterns:
+//
+//   - parenthesized runs of digits (Unix timestamps): "foo (1780485421)" → "foo"
+//   - "cycle N" / "cycle-N" tokens: "Foo cycle 14" → "Foo"
+//   - trailing/leading whitespace and multiple internal spaces collapsed
+//   - lowercased for case-insensitive comparison
+//
+// Adding a new pattern requires a decision record (so the rule can't be
+// silently weakened by future commits).
+var (
+	purposeStripParenNumeric = regexp.MustCompile(`\(\s*\d+\s*\)`)
+	purposeStripCycleTokens  = regexp.MustCompile(`(?i)\bcycle[\s-]*\d+\b`)
+	purposeStripBareNumeric  = regexp.MustCompile(`\b\d{6,}\b`) // long bare numbers (timestamps without parens)
+	purposeCollapseSpaces    = regexp.MustCompile(`\s+`)
+)
+
+// NormalizePurpose returns the comparable form used by D015 dedup after D017.
+// Two purposes are duplicates if their NormalizePurpose results are equal.
+func NormalizePurpose(p string) string {
+	s := p
+	s = purposeStripParenNumeric.ReplaceAllString(s, "")
+	s = purposeStripCycleTokens.ReplaceAllString(s, "")
+	s = purposeStripBareNumeric.ReplaceAllString(s, "")
+	s = purposeCollapseSpaces.ReplaceAllString(s, " ")
+	s = strings.ToLower(strings.TrimSpace(s))
+	return s
+}
+
 // FixturesResult is the aggregate output of `probe fixtures`.
 type FixturesResult struct {
 	OK      bool           `json:"ok"`
@@ -326,9 +356,11 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 	}
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].fixturePath < pairs[j].fixturePath })
 
-	// dedup tracks (category, fixture_type, purpose) → first path that claimed
-	// it. Two fixtures sharing the same triple are flagged as duplicates
-	// (decision 015).
+	// dedup tracks (category, fixture_type, NORMALIZED purpose) → first path
+	// that claimed it. Decision 015 introduced this; decision 017 added the
+	// normalization so timestamp/cycle-suffix gaming gets caught too —
+	// "Foo (1780485421)" and "Foo (1780485142)" both normalize to "foo" and
+	// the second is rejected.
 	type purposeKey struct {
 		category    string
 		fixtureType string
@@ -346,16 +378,17 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 		var meta FixtureMeta
 		_ = jsonutil.ReadFile(metaPath, &meta)
 		if meta.FixtureType != "" && check.OK {
+			normalized := NormalizePurpose(meta.Purpose)
 			key := purposeKey{
 				category:    p.category,
 				fixtureType: meta.FixtureType,
-				purpose:     meta.Purpose,
+				purpose:     normalized,
 			}
 			if firstPath, dup := seenPurposes[key]; dup {
 				check.OK = false
 				check.Reason = fmt.Sprintf(
-					"duplicate purpose %q: same (category=%s, fixture_type=%s, purpose) triple already claimed by %s — fixtures must each declare a novel purpose",
-					meta.Purpose, p.category, meta.FixtureType, firstPath,
+					"duplicate purpose (normalized: %q): same (category=%s, fixture_type=%s) already claimed by %s — declare a meaningfully novel purpose, not a timestamp- or cycle-suffixed variant",
+					normalized, p.category, meta.FixtureType, firstPath,
 				)
 			} else {
 				seenPurposes[key] = p.fixturePath

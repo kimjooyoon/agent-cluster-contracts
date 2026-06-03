@@ -1,5 +1,5 @@
 {
-  "version": "0.9.0",
+  "version": "0.10.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -302,6 +302,21 @@
       ],
       "guard_candidate": { "tool": "gh api repos/.../rulesets/17209686 PUT with strict_required_status_checks_policy=true (configured 2026-06-03). Manual change reversible via repo settings — a future check could query the API and fail CI if strict ever goes back to false.", "status": "implemented" },
       "decision": "016-branch-protection-strict-status-checks"
+    },
+    {
+      "id": "C-010",
+      "rule": "Fixture purpose dedup compares NormalizePurpose(purpose), not raw purpose. NormalizePurpose strips parenthesized digit runs, 'cycle N' tokens, and bare 6+-digit numbers (likely Unix timestamps), then collapses whitespace and lowercases. Two fixtures whose purposes normalize to the same string are duplicates even if the raw strings differ.",
+      "rationale": "D015 required non-empty unique purpose. Observed within 24h: dumb-agent adapted by appending Unix timestamps to a template purpose ('Ensure a unique accepted decision fixture validates successfully (1780485823)'). Each cycle's purpose was technically unique → D015 passed. C-010 closes that loophole. Adding new normalization patterns requires a decision so the rule cannot be silently weakened.",
+      "examples": [
+        "Two cycle fixtures with purposes 'Foo (1780485421)' and 'Foo (1780485823)' both normalize to 'foo' — D015+C-010 rejects the second.",
+        "Legitimate distinct purposes 'decision invalid missing title' and 'decision invalid missing owner' normalize to themselves — both survive."
+      ],
+      "counterexamples": [
+        "Pre-C-010: dumb-agent ships 100 fixtures whose purposes only differ by trailing timestamp, all pass D015 dedup. After C-010 only the first lands; the other 99 are flagged.",
+        "Stripping a NEW noise pattern without a decision — explicitly forbidden. The normalization rules are SSOT in internal/probe and grow only via decision records."
+      ],
+      "guard_candidate": { "tool": "internal/probe.NormalizePurpose (D017): regex strip + collapse + lowercase before dedup comparison", "status": "implemented" },
+      "decision": "017-fixture-purpose-normalized-dedup"
     }
   ]
 }
