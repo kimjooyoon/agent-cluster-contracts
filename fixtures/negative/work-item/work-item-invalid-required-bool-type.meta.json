@@ -1,8 +1,9 @@
 {
-  "fixture_type": "decision",
-  "verifier": "decision validate",
+  "fixture_type": "ir-aggregate",
+  "verifier": "ir-aggregate validate",
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "work item invalid required bool type"
+  "purpose": "ir-aggregate with slot.required field as JSON string instead of bool \u2014 JSON parse rejects at unmarshal time",
+  "expected_error_contains": "cannot unmarshal string into Go struct field Slot.slots.required of type bool"
 }

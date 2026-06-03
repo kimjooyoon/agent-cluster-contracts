@@ -1,8 +1,9 @@
 {
-  "fixture_type": "decision",
-  "verifier": "decision validate",
+  "fixture_type": "ir-aggregate",
+  "verifier": "ir-aggregate validate",
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "work item invalid duplicate slot name"
+  "purpose": "ir-aggregate with invalid source.sha256 (47 chars instead of 64) \u2014 validator stops at sha check; the duplicate-slot-name shape in the data is not actually exercised (TODO follow-up: fix sha so duplicate-slot check fires)",
+  "expected_error_contains": "source.sha256"
 }

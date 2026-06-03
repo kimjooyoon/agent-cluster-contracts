@@ -1,8 +1,9 @@
 {
-  "fixture_type": "decision",
-  "verifier": "decision validate",
+  "fixture_type": "ir-aggregate",
+  "verifier": "ir-aggregate validate",
   "expected": "fail",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "work item invalid slot missing name"
+  "purpose": "ir-aggregate with invalid sha AND empty slot.name \u2014 validator surfaces both errors; substring picks the kebab-case check",
+  "expected_error_contains": "must be kebab-case"
 }
