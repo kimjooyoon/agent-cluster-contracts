@@ -284,6 +284,26 @@ may file candidate IR documents, but a designer reviews them before merge.
 # {"role":"dumb-agent","allowed":true,"status":"merge_allowed","reasons":[],"files":[...]}
 ```
 
+### Auto-merge (decision 012)
+
+You don't have to call `gh pr merge` yourself. Open the PR with **either**:
+
+- a label named `dumb-agent`, or
+- a branch name starting with `dumb-agent/`
+
+The `.github/workflows/dumb-agent-automerge.yml` workflow then runs:
+
+1. Builds `agentguard`.
+2. Computes the PR diff and runs `merge-check --role dumb-agent --json`.
+3. If `merge_allowed`, calls `gh pr merge --auto --merge`. GitHub merges
+   the PR as soon as every required check (verify, scan, enforce-role,
+   contracts-drift in consumers) passes.
+4. If `merge_blocked`, leaves a single PR comment with the reasons. You
+   either fix the PR or accept that a designer must review.
+
+This DOES NOT skip any check — required checks remain merge gates. It
+only decides whether to enable auto-merge.
+
 ### How to think about failure
 
 - Your candidate failed verifier? → Don't "fix" the verifier. Minimize the

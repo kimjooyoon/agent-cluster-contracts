@@ -147,6 +147,15 @@ against `agent-roles.schema.json` — mirrored by `internal/agentguard.ValidateR
 Runs as part of `probe preflight` (check name `agent-roles-validate`) and
 as a dedicated step in `contracts.yml`.
 
+`agentguard merge-check` (decision 010) is the bounded-merge predicate.
+Stricter than `verify`: files must match `auto_merge_paths` (not just
+`allowed_paths`). Output: `merge_allowed | merge_blocked`. Used by:
+
+- dumb-agent before calling `gh pr merge` manually.
+- `.github/workflows/dumb-agent-automerge.yml` (decision 012) — runs the
+  predicate on PRs labeled `dumb-agent` (or branched `dumb-agent/*`) and
+  invokes `gh pr merge --auto --merge` if allowed.
+
 ## probe
 
 Dumb-agent baseline + fixture verifier (introduced by decision 005).

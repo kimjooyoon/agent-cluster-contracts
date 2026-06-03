@@ -255,7 +255,7 @@
         "dumb-agent opens a PR editing tools/decision/main.go and tries to auto-merge — merge-check FORBIDDEN, never gets past.",
         "A role with auto_merge_eligible: true but no auto_merge_paths declared — merge-check refuses everything (defensive default)."
       ],
-      "guard_candidate": { "tool": "agentguard merge-check (D010 ships predicate; future workflow may auto-invoke gh pr merge based on its output)", "status": "implemented" },
+      "guard_candidate": { "tool": "agentguard merge-check (D010 ships predicate) + .github/workflows/dumb-agent-automerge.yml (D012 ships executor — gh pr merge --auto on merge_allowed PRs)", "status": "implemented" },
       "decision": "010-dumb-agent-bounded-merge-authority"
     },
     {

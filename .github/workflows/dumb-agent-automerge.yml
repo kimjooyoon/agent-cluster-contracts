@@ -1,0 +1,96 @@
+name: dumb-agent-automerge
+
+# Decision 012 — executor for the bounded merge predicate D010 ships.
+#
+# On any PR labeled "dumb-agent" or with branch prefix "dumb-agent/*":
+#   1. Build agentguard.
+#   2. Run `agentguard merge-check --role dumb-agent` against the PR diff.
+#   3. If merge_allowed → `gh pr merge --auto --merge`. GitHub merges as
+#      soon as required checks pass (verify, scan, enforce-role).
+#   4. If merge_blocked → leave a single PR comment with the reasons.
+#
+# Required checks (the underlying CI gates) are unchanged: this workflow
+# only decides whether to *enable* auto-merge, never whether to skip
+# checks. If contracts.yml or enforce-role fails, GitHub will not merge.
+#
+# Permissions: needs `contents: write` to merge and `pull-requests: write`
+# to enable auto-merge / comment. Auto-merge must also be enabled in the
+# repo settings (Settings → General → Allow auto-merge).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, ready_for_review]
+
+jobs:
+  consider-automerge:
+    if: |
+      github.event.pull_request.draft == false &&
+      (contains(github.event.pull_request.labels.*.name, 'dumb-agent') ||
+       startsWith(github.head_ref, 'dumb-agent/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Build agentguard
+        run: go build -o bin/agentguard ./tools/agentguard
+
+      - name: Compute changed files
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE" "$HEAD" > /tmp/changed.txt
+          echo "Changed files:"
+          cat /tmp/changed.txt
+
+      - name: Run merge-check
+        id: merge-check
+        run: |
+          set +e
+          ./bin/agentguard merge-check --role dumb-agent --stdin --json < /tmp/changed.txt > /tmp/result.json
+          set -e
+          cat /tmp/result.json
+          allowed=$(jq -r '.allowed' /tmp/result.json)
+          status=$(jq -r '.status' /tmp/result.json)
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge (PR will merge when required checks pass)
+        if: steps.merge-check.outputs.allowed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr merge "${{ github.event.pull_request.number }}" \
+            --auto --merge \
+            --repo "${{ github.repository }}"
+          echo "auto-merge enabled (status=${{ steps.merge-check.outputs.status }})"
+
+      - name: Comment with merge-blocked reasons
+        if: steps.merge-check.outputs.allowed == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          reasons=$(jq -r '.reasons | map("- " + .) | join("\n")' /tmp/result.json)
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "🤖 dumb-agent-automerge (decision 012): \`status=${{ steps.merge-check.outputs.status }}\`" \
+            "Reasons:" \
+            "$reasons")
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "$body"

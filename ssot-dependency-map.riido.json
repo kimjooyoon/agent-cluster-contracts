@@ -1,5 +1,5 @@
 {
-  "version": "0.10.0",
+  "version": "0.11.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -359,6 +359,14 @@
       "repo": "agent-cluster-contracts",
       "workflow": ".github/workflows/dumb-agent-safety.yml",
       "verifies": ["agent-roles per-PR path allowlist enforcement"]
+    },
+    {
+      "repo": "agent-cluster-contracts",
+      "workflow": ".github/workflows/dumb-agent-automerge.yml",
+      "verifies": [
+        "agentguard merge-check predicate (decision 010)",
+        "auto-merge invocation for PRs labeled dumb-agent or branch dumb-agent/*"
+      ]
     },
     {
       "repo": "agent-cluster-backend",

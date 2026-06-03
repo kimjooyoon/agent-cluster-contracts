@@ -1,0 +1,43 @@
+{
+  "id": "012-dumb-agent-automerge-workflow",
+  "title": "dumb-agent automerge workflow: D010 merge-check predicate gets a GitHub Actions executor",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance",
+      "tooling",
+      "ci"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "010-dumb-agent-bounded-merge-authority"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/agentguard/agentguard.go"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal continuing ssot improvement (auto-merge executor)"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Forbidden merge scope remains exactly D010's: anything outside auto_merge_paths or matching forbidden_paths is rejected by merge-check before --auto is even attempted."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
