@@ -1,0 +1,46 @@
+{
+  "id": "017-fixture-purpose-normalized-dedup",
+  "title": "Fixture purpose dedup uses normalized form (strips timestamps, cycle counters, mechanical suffixes)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "015-fixture-purpose-and-dedup"
+    },
+    {
+      "kind": "decision",
+      "ref": "016-branch-protection-strict-status-checks"
+    },
+    {
+      "kind": "log",
+      "ref": "cycle-31..cycle-35 fixtures with template purpose='Ensure a unique ... (TIMESTAMP)'"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 dumb-agent timestamp-suffix gaming observed"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Legitimate distinct purposes survive normalization: 'decision invalid missing title' vs 'decision invalid missing owner' — different content words remain after stripping mechanical suffixes."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

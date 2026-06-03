@@ -286,6 +286,82 @@ func TestFixturesSamePurposeAcrossCategoriesAllowed(t *testing.T) {
 	}
 }
 
+// Decision 017 — purpose normalization (catches timestamp-suffix gaming).
+
+func TestNormalizePurposeStripsParenthesizedTimestamp(t *testing.T) {
+	a := NormalizePurpose("Ensure a unique accepted decision fixture validates successfully (1780485421)")
+	b := NormalizePurpose("Ensure a unique accepted decision fixture validates successfully (1780485142)")
+	if a != b {
+		t.Errorf("expected normalized forms to match (stripped timestamps), got %q vs %q", a, b)
+	}
+}
+
+func TestNormalizePurposeStripsCycleTokens(t *testing.T) {
+	cases := []string{
+		"Positive fixture cycle 3",
+		"Positive fixture cycle 14",
+		"Positive fixture cycle-30",
+		"Positive fixture CYCLE  99",
+	}
+	first := NormalizePurpose(cases[0])
+	for _, c := range cases[1:] {
+		if NormalizePurpose(c) != first {
+			t.Errorf("expected %q to normalize same as %q (cycle stripped), got %q vs %q", c, cases[0], NormalizePurpose(c), first)
+		}
+	}
+}
+
+func TestNormalizePurposeStripsBareLongNumbers(t *testing.T) {
+	a := NormalizePurpose("fixture-1780485421 verifies decision")
+	b := NormalizePurpose("fixture-1780485142 verifies decision")
+	if a != b {
+		t.Errorf("expected bare-timestamp stripping to make these equal, got %q vs %q", a, b)
+	}
+}
+
+func TestNormalizePurposePreservesMeaningfulDifferences(t *testing.T) {
+	cases := map[string]string{
+		"decision invalid missing title": "decision invalid missing title",
+		"decision invalid missing owner": "decision invalid missing owner",
+		"decision invalid missing scope": "decision invalid missing scope",
+	}
+	seen := map[string]string{}
+	for in, _ := range cases {
+		norm := NormalizePurpose(in)
+		if prev, dup := seen[norm]; dup {
+			t.Errorf("expected %q and %q to remain distinct after normalization, both → %q", prev, in, norm)
+		}
+		seen[norm] = in
+	}
+}
+
+func TestFixturesRejectsTimestampSuffixedDuplicate(t *testing.T) {
+	// The actual D017 enforcement case: dumb-agent cycle-style fixtures
+	// with timestamp-suffixed "unique" purposes should be rejected as
+	// duplicates because the normalized form matches.
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-a.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-a.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"Ensure a unique accepted decision fixture validates successfully (1780485421)"}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-b.json"),
+		`{"id":"999-cycle-b","title":"different title","owner":"t","status":"accepted","source":"top_down","scope":{"bounded_contexts":[],"areas":["governance"]},"evidence":[{"kind":"file","ref":"x"}],"affected_repos":["agent-cluster-contracts"],"ssot_owner":"agent-cluster-contracts","generated_artifacts":[],"guards":[],"examples":["x"],"counterexamples":[],"created_at":"2026-06-03"}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/cycle-b.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"Ensure a unique accepted decision fixture validates successfully (1780485142)"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected D017 to flag timestamp-suffixed duplicate, got OK")
+	}
+	dup := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "duplicate purpose") {
+			dup = true
+		}
+	}
+	if !dup {
+		t.Errorf("expected 'duplicate purpose' reason in some check, got %+v", res.Checks)
+	}
+}
+
 func TestFixturesIRAggregateRejectsExtraQueryFields(t *testing.T) {
 	root := t.TempDir()
 	// aggregate doc carrying a wire_name → schema rule says forbidden for non-query
