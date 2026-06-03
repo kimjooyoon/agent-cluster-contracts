@@ -42,6 +42,8 @@ func main() {
 	switch os.Args[1] {
 	case "verify":
 		cmdVerify(root, os.Args[2:])
+	case "merge-check":
+		cmdMergeCheck(root, os.Args[2:])
 	case "validate":
 		cmdValidate(root, os.Args[2:])
 	case "list":
@@ -165,6 +167,61 @@ func printVerifyText(role *agentguard.Role, res agentguard.CheckResult) {
 	fmt.Fprintf(os.Stderr, "  forbidden_paths = %v\n", role.ForbiddenPaths)
 	if role.MaxFilesPerPR > 0 {
 		fmt.Fprintf(os.Stderr, "  max_files_per_pr= %d\n", role.MaxFilesPerPR)
+	}
+}
+
+func cmdMergeCheck(root string, args []string) {
+	fs := flag.NewFlagSet("merge-check", flag.ExitOnError)
+	role := fs.String("role", "", "role id (required)")
+	filesCSV := fs.String("files", "", "comma-separated changed paths")
+	fromStdin := fs.Bool("stdin", false, "read changed paths from stdin (one per line)")
+	from := fs.String("from", "", "git ref to diff from (e.g. main)")
+	to := fs.String("to", "HEAD", "git ref to diff to")
+	asJSON := fs.Bool("json", false, "JSON output")
+	fs.Parse(args)
+	if *role == "" {
+		fmt.Fprintln(os.Stderr, "--role required")
+		os.Exit(2)
+	}
+	roles, err := agentguard.Load(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(2)
+	}
+	r := roles.Lookup(*role)
+	if r == nil {
+		fmt.Fprintln(os.Stderr, "unknown role:", *role)
+		os.Exit(2)
+	}
+	files, err := resolveFiles(*filesCSV, *fromStdin, *from, *to)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(2)
+	}
+	res := agentguard.MergeCheck(r, files)
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(res)
+	} else {
+		if res.Allowed {
+			fmt.Printf("agentguard merge-check: %s (role=%s, %d file(s))\n", res.Status, res.RoleID, len(res.Files))
+		} else {
+			fmt.Fprintf(os.Stderr, "agentguard merge-check: %s (role=%s)\n", res.Status, res.RoleID)
+			for _, reason := range res.Reasons {
+				fmt.Fprintln(os.Stderr, "  -", reason)
+			}
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, "Role merge config:")
+			fmt.Fprintf(os.Stderr, "  auto_merge_paths = %v\n", r.AutoMergePaths)
+			fmt.Fprintf(os.Stderr, "  forbidden_paths  = %v\n", r.ForbiddenPaths)
+			if r.MaxFilesPerPR > 0 {
+				fmt.Fprintf(os.Stderr, "  max_files_per_pr = %d\n", r.MaxFilesPerPR)
+			}
+		}
+	}
+	if !res.Allowed {
+		os.Exit(1)
 	}
 }
 
@@ -316,7 +373,12 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `agentguard — enforce per-role path allowlists on PR diffs
 
 Commands:
-  verify   --role ROLE [--files A,B | --stdin | --from REF [--to REF]] [--json]
+  verify       --role ROLE [--files A,B | --stdin | --from REF [--to REF]] [--json]
+                  Per-PR diff allowlist check (write authority).
+  merge-check  --role ROLE [--files A,B | --stdin | --from REF [--to REF]] [--json]
+                  Bounded merge authority (decision 010). Stricter than verify:
+                  every file must be in auto_merge_paths, not just allowed_paths.
+                  Status: merge_allowed | merge_blocked.
   validate [--json]
                   Check agent-roles.riido.json against agent-roles.schema.json
                   (mirrored by ValidateRoles). Exit 1 on schema violations.

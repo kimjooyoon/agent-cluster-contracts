@@ -2,6 +2,7 @@ package agentguard
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -245,6 +246,142 @@ func TestCheckHappyPath(t *testing.T) {
 	}
 	if len(res.Violations) != 0 {
 		t.Errorf("expected no violations, got %v", res.Violations)
+	}
+}
+
+// MergeCheck tests (decision 010 — bounded merge authority).
+
+func dumbAgentMergeRole() *Role {
+	// Mirrors the real dumb-agent shape: auto_merge_paths is a subset of
+	// allowed_paths (ir/candidates is allowed but not auto-mergeable).
+	return &Role{
+		ID:           "dumb-agent",
+		AllowedPaths: []string{
+			"fixtures/positive/**",
+			"fixtures/negative/**",
+			"fuzz/corpus/**",
+			"ir/candidates/**",
+			"reports/guard-candidates/**",
+			"reports/environment-blockers/**",
+		},
+		AutoMergePaths: []string{
+			"fixtures/positive/**",
+			"fixtures/negative/**",
+			"fuzz/corpus/**",
+			"reports/guard-candidates/**",
+			"reports/environment-blockers/**",
+		},
+		ForbiddenPaths: []string{
+			"tools/**", ".github/workflows/**", "decisions/**", "dsl/**",
+			"ir/schema/**", "ssot-dependency-map.riido.json",
+			"concept-map/concept-map.riido.json", "agent-roles.riido.json",
+		},
+		MaxFilesPerPR: 5,
+	}
+}
+
+func TestMergeCheckSafeFixturePRAllowed(t *testing.T) {
+	r := dumbAgentMergeRole()
+	res := MergeCheck(r, []string{
+		"fixtures/positive/work-item/min.json",
+		"fixtures/positive/work-item/min.meta.json",
+	})
+	if !res.Allowed || res.Status != "merge_allowed" {
+		t.Errorf("expected merge_allowed, got %+v", res)
+	}
+}
+
+func TestMergeCheckForbiddenFileBlocked(t *testing.T) {
+	r := dumbAgentMergeRole()
+	res := MergeCheck(r, []string{
+		"fixtures/positive/x.json",
+		"tools/decision/main.go",
+	})
+	if res.Allowed {
+		t.Error("expected merge_blocked when forbidden file present")
+	}
+	hasForbidden := false
+	for _, reason := range res.Reasons {
+		if strings.Contains(reason, "FORBIDDEN") {
+			hasForbidden = true
+		}
+	}
+	if !hasForbidden {
+		t.Errorf("expected FORBIDDEN reason, got %v", res.Reasons)
+	}
+}
+
+func TestMergeCheckTooManyFilesBlocked(t *testing.T) {
+	r := dumbAgentMergeRole()
+	files := make([]string, 6)
+	for i := range files {
+		files[i] = fmt.Sprintf("fixtures/positive/x%d.json", i)
+	}
+	res := MergeCheck(r, files)
+	if res.Allowed {
+		t.Error("expected merge_blocked when files > max")
+	}
+}
+
+func TestMergeCheckAllowedButNotAutoMergeable(t *testing.T) {
+	// ir/candidates/ is in allowed_paths but NOT in auto_merge_paths —
+	// designer must review IR candidates even though dumb-agent may write them.
+	r := dumbAgentMergeRole()
+	res := MergeCheck(r, []string{"ir/candidates/work-item/exp.json"})
+	if res.Allowed {
+		t.Error("expected merge_blocked for ir/candidates/ (allowed but not auto-mergeable)")
+	}
+	if len(res.Reasons) == 0 {
+		t.Error("expected at least one reason")
+	}
+}
+
+func TestMergeCheckPolicyToolWorkflowEditBlocked(t *testing.T) {
+	r := dumbAgentMergeRole()
+	for _, p := range []string{
+		"agent-roles.riido.json",
+		"tools/agentguard/main.go",
+		".github/workflows/contracts.yml",
+		"decisions/2026/06/03/001-initial-agreement.decision.riido.json",
+		"dsl/core.lisp",
+		"ir/schema/ir.schema.json",
+		"concept-map/concept-map.riido.json",
+		"ssot-dependency-map.riido.json",
+	} {
+		res := MergeCheck(r, []string{p})
+		if res.Allowed {
+			t.Errorf("expected merge_blocked for %q, got allowed", p)
+		}
+	}
+}
+
+func TestMergeCheckRoleWithoutAutoMergePathsAlwaysBlocked(t *testing.T) {
+	// Designer role has no auto_merge_paths declared — bounded merge
+	// authority not granted; designer always goes through review.
+	r := &Role{ID: "designer", AllowedPaths: []string{"**"}}
+	res := MergeCheck(r, []string{"fixtures/positive/x.json"})
+	if res.Allowed {
+		t.Error("expected merge_blocked when role has no auto_merge_paths")
+	}
+}
+
+func TestMergeCheckResultJSONShape(t *testing.T) {
+	r := dumbAgentMergeRole()
+	res := MergeCheck(r, []string{"tools/x.go"})
+	data, err := json.Marshal(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	for _, want := range []string{
+		`"role":"dumb-agent"`,
+		`"allowed":false`,
+		`"status":"merge_blocked"`,
+		`"reasons":`,
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("JSON missing %q\n--- got ---\n%s", want, s)
+		}
 	}
 }
 

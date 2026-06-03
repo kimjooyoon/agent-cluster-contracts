@@ -1,0 +1,56 @@
+{
+  "id": "010-dumb-agent-bounded-merge-authority",
+  "title": "Dumb-agent bounded merge authority: may merge candidate/evidence PRs only, never guard rails",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance",
+      "tooling",
+      "ci"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "002-dumb-agent-role"
+    },
+    {
+      "kind": "decision",
+      "ref": "004-agentguard-diagnostics-and-role-realignment"
+    },
+    {
+      "kind": "decision",
+      "ref": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "kind": "decision",
+      "ref": "009-agent-roles-schema-and-validator"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal dumb-agent bounded merge authority"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/agentguard/agentguard.go"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Post-merge protocol: dumb-agent runs probe preflight after its own merge lands. If status flips to baseline_blocked",
+    "dumb-agent files one reports/environment-blockers/ note or one revert PR and stops. No further merges until baseline returns to candidate_allowed."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
