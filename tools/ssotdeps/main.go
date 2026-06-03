@@ -162,7 +162,7 @@ func cmdCrossCheck(args []string) {
 		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": len(errs) == 0, "errors": errMsgs(errs)})
 	} else {
 		if len(errs) == 0 {
-			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths; all ./bin/<tool> workflow references registered as ssot_artifacts; AGENT_CONTRACT.md mirror of agent-roles dumb-agent paths in sync; all verifier/code-generator tools documented in tools/README.md; all dsl/ and ir/domain/ files registered)\n", len(m.Pending), pairsChecked)
+			fmt.Printf("ssotdeps cross-check: OK (%d pending entries clean against concept-map; %d (data,schema) pairs symmetric against dumb-agent forbidden_paths; all ./bin/<tool> workflow references registered as ssot_artifacts; AGENT_CONTRACT.md mirror of agent-roles dumb-agent paths in sync; all verifier/code-generator tools documented in tools/README.md; all dsl/, ir/domain/, docs/ files registered)\n", len(m.Pending), pairsChecked)
 		} else {
 			fmt.Fprintf(os.Stderr, "ssotdeps cross-check: %d violation(s)\n", len(errs))
 			for _, e := range errs {
