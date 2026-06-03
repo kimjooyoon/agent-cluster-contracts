@@ -331,6 +331,63 @@ func CrossCheck(m *Map, cm *conceptmap.Map) []error {
 
 var cidRefRe = regexp.MustCompile(`C-[0-9]{3}`)
 
+// VerifyFileSystemCoverage enforces that every file under canonical
+// SSOT source directories (currently dsl/ and ir/domain/) is registered
+// as an ssot_artifact in the dep map. The forward direction is covered
+// by `ssotdeps verify` (each declared path must exist on disk); D038
+// adds the inverse so newly-added files can't silently bypass the dep
+// map's catalog invariant.
+//
+// Scope is intentionally narrow: directories where each file is a
+// canonical SSOT and the set is small/stable. decisions/ is excluded
+// (different SSOT pattern — the directory itself is the registry,
+// only the foundational initial-agreement is enumerated). tools/ is
+// covered by D033 via the workflow-tool coverage check.
+//
+// root is the contracts repo root. Returns one error per uncovered file.
+func VerifyFileSystemCoverage(m *Map, root string) []error {
+	if m == nil {
+		return nil
+	}
+	registered := map[string]bool{}
+	for _, a := range m.SsotArtifacts {
+		registered[filepath.ToSlash(a.Path)] = true
+	}
+	type rule struct {
+		dir    string
+		suffix string
+	}
+	rules := []rule{
+		{"dsl", ".lisp"},
+		{"ir/domain", ".ir.json"},
+	}
+	var errs []error
+	for _, r := range rules {
+		walkErr := filepath.WalkDir(filepath.Join(root, r.dir), func(p string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil // best-effort; don't fail the cross-check on traversal errors
+			}
+			if d.IsDir() || !strings.HasSuffix(d.Name(), r.suffix) {
+				return nil
+			}
+			rel, err := filepath.Rel(root, p)
+			if err != nil {
+				return nil
+			}
+			relSlash := filepath.ToSlash(rel)
+			if !registered[relSlash] {
+				errs = append(errs, fmt.Errorf(
+					"filesystem coverage drift (D038): %s exists on disk but is NOT registered as an ssot_artifact in ssot-dependency-map.riido.json. Add an entry with kind matching its directory (dsl/ → dsl-source, ir/domain/ → ir) so the dep map's catalog invariant is maintained",
+					relSlash,
+				))
+			}
+			return nil
+		})
+		_ = walkErr
+	}
+	return errs
+}
+
 // VerifyToolsReadmeCoverage enforces that every tool in the dep map
 // (kind=verifier or kind=code-generator with path starting with
 // tools/) is mentioned by name in tools/README.md. Decision 035

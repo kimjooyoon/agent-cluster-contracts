@@ -1,0 +1,53 @@
+{
+  "id": "038-filesystem-coverage",
+  "title": "Executable filesystem coverage guard - dsl + ir/domain files must be in dep map",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit confirmed dsl/ and ir/domain/ are in sync today but nothing executable enforced it. ssotdeps verify only checks declared paths exist on disk (forward direction); the inverse (existing files are declared) was open. Same recurring drift class as D033 workflow-tool coverage, applied to source directories"
+    },
+    {
+      "kind": "decision",
+      "ref": "033-register-ci-tools - same inverse-coverage pattern, applied to .github/workflows -> tools/ rather than filesystem -> dep map"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/ssotdeps.VerifyFileSystemCoverage - walks dsl/**/*.lisp and ir/domain/*.ir.json; asserts each file's repo-relative path is registered in m.SsotArtifacts. Wired into ssotdeps cross-check as the 6th sub-check axis",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/ssotdeps/ssotdeps_test.go TestVerifyFileSystemCoverageAllRegistered + TestVerifyFileSystemCoverageFlagsUnregisteredDSL + TestVerifyFileSystemCoverageFlagsUnregisteredIR + TestVerifyFileSystemCoverageIgnoresUnrelatedFiles + TestVerifyFileSystemCoverageMissingDirsAreOK (5 cases)",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-021 - codifies the rule; concept-map bumped v0.25.0 to v0.26.0",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Pre-D038: nothing prevented adding dsl/bogus.lisp without a dep map entry; the file would be invisible to D031/D032 audits and to the dep map's catalog invariant.",
+    "Post-D038: simulated addition of dsl/bogus-unregistered.lisp triggers 'filesystem coverage drift (D038): dsl/bogus-unregistered.lisp exists on disk but is NOT registered as an ssot_artifact'. Tested manually + by unit test.",
+    "All 5 dsl/*.lisp and 3 ir/domain/*.ir.json files on main are registered; ssotdeps cross-check reports 'all dsl/ and ir/domain/ files registered'."
+  ],
+  "counterexamples": [
+    "decisions/**/*.decision.riido.json files are NOT enumerated in the dep map (only initial-agreement is); the directory itself is the registry walked by decision validate. Different SSOT pattern - D038 does not double-check.",
+    "tools/<name>/main.go files have their own inverse check via D033 (workflow-tool coverage); D038 leaves tools/ alone.",
+    "Non-.lisp under dsl/ (e.g. README.md) and non-.ir.json under ir/domain/ (e.g. notes.txt) are intentionally out of scope - only canonical source extensions are required to be registered.",
+    "Missing dirs (fresh repo without dsl/ or ir/domain/ yet) produce no errors - the rule fires on EXISTING files, not on directory presence."
+  ],
+  "created_at": "2026-06-03"
+}
