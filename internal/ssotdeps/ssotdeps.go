@@ -360,6 +360,7 @@ func VerifyFileSystemCoverage(m *Map, root string) []error {
 	rules := []rule{
 		{"dsl", ".lisp"},
 		{"ir/domain", ".ir.json"},
+		{"docs", ".md"}, // D042: docs/ files must also be registered
 	}
 	var errs []error
 	for _, r := range rules {
@@ -377,7 +378,7 @@ func VerifyFileSystemCoverage(m *Map, root string) []error {
 			relSlash := filepath.ToSlash(rel)
 			if !registered[relSlash] {
 				errs = append(errs, fmt.Errorf(
-					"filesystem coverage drift (D038): %s exists on disk but is NOT registered as an ssot_artifact in ssot-dependency-map.riido.json. Add an entry with kind matching its directory (dsl/ → dsl-source, ir/domain/ → ir) so the dep map's catalog invariant is maintained",
+					"filesystem coverage drift (D038/D042): %s exists on disk but is NOT registered as an ssot_artifact in ssot-dependency-map.riido.json. Add an entry with kind matching its directory (dsl/ → dsl-source, ir/domain/ → ir, docs/ → doc) so the dep map's catalog invariant is maintained",
 					relSlash,
 				))
 			}

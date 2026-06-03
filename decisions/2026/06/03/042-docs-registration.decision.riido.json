@@ -1,0 +1,55 @@
+{
+  "id": "042-docs-registration",
+  "title": "Register docs/ files in dep map + extend D038 filesystem coverage",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "Audit found 2 substantive docs in docs/ unregistered in dep map — agent-work-protocol.md (148 lines, binding by reference per its own preamble) and pending-research.md (referenced from README.md as the open-questions registry). D038 filesystem coverage was scoped to dsl/ and ir/domain/ only; docs/ was open"
+    },
+    {
+      "kind": "decision",
+      "ref": "038-filesystem-coverage - D042 extends D038's scan rules with `docs/` + `.md`"
+    },
+    {
+      "kind": "file",
+      "ref": "docs/agent-work-protocol.md - the operational protocol referenced from README.md and from 001-initial-agreement.decision.riido.json"
+    },
+    {
+      "kind": "file",
+      "ref": "docs/research/pending-research.md - the open-research-topics registry referenced from README.md"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "schema",
+      "ref": "ssot-dependency-map.riido.json - 2 new ssot_artifacts (agent-work-protocol, pending-research) with kind=doc; dep map bumped v0.15.0 → v0.16.0",
+      "status": "implemented"
+    },
+    {
+      "kind": "go-tool",
+      "ref": "internal/ssotdeps.VerifyFileSystemCoverage extended with rule {dir: docs, suffix: .md}. Error message text updated to cite D038/D042 and list the doc kind mapping",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "ssotdeps cross-check now reports 'all dsl/, ir/domain/, docs/ files registered' on a clean tree.",
+    "Adding a scratch docs/research/scratch.md without registration fires: 'filesystem coverage drift (D038/D042): docs/research/scratch.md exists on disk but is NOT registered as an ssot_artifact... (dsl/ → dsl-source, ir/domain/ → ir, docs/ → doc)'.",
+    "Future doc additions under docs/ require a dep-map entry first — same convention now applied to all 3 canonical SSOT source directories."
+  ],
+  "counterexamples": [
+    "README.md at repo root and per-directory READMEs (dsl/README.md, fixtures/README.md, etc.) are NOT in docs/ so they're out of scope of D038's extended rule. They're light scaffolds; registering each would be churn without value. tools/README.md is already registered (kind=doc) because tools/ has its own D035 coverage check.",
+    "Guard-candidate reports under reports/guard-candidates/ are dumb-agent transient work product, not canonical SSOT — intentionally not subject to filesystem-coverage rules.",
+    "Tests are not added/changed by D042 — the existing TestVerifyFileSystemCoverageAllRegistered + variants already cover the rule mechanics; the new `docs/` scope is exercised implicitly by the real cross-check on the contracts repo."
+  ],
+  "created_at": "2026-06-03"
+}

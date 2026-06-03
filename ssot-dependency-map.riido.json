@@ -1,5 +1,5 @@
 {
-  "version": "0.15.0",
+  "version": "0.16.0",
   "owner": "agent-cluster-contracts",
   "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
   "ssot_artifacts": [
@@ -212,6 +212,20 @@
       "id": "secretscan-tool",
       "kind": "verifier",
       "path": "tools/secretscan/main.go",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "agent-work-protocol",
+      "kind": "doc",
+      "path": "docs/agent-work-protocol.md",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "pending-research",
+      "kind": "doc",
+      "path": "docs/research/pending-research.md",
       "schema": null,
       "owned_by": "agent-cluster-contracts"
     }
