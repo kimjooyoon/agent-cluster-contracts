@@ -1,5 +1,5 @@
 {
-  "version": "0.23.0",
+  "version": "0.24.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -462,6 +462,21 @@
       ],
       "guard_candidate": { "tool": "internal/ssotdeps.VerifyToolsReadmeCoverage (D035) — iterates ssot_artifacts with kind in {verifier, code-generator} and path under tools/; for each, checks tools/README.md contains both `## <name>` heading and `tools/<name>/main.go` path literal. Wired into ssotdeps cross-check; 5th sub-check axis", "status": "implemented" },
       "decision": "035-tools-readme-coverage"
+    },
+    {
+      "id": "C-020",
+      "rule": "decisions/schema.riido.json's `scope.bounded_contexts` items are constrained to a closed enum. The initial set is `[\"platform\", \"work-item\"]` reflecting actual usage across D001..D035; extending requires a decision that updates both the JSON Schema AND internal/decision.validBoundedContexts. Mirrors the pattern already in place for `scope.areas` (11-value enum).",
+      "rationale": "Audit pre-D036 found the schema declared `scope.bounded_contexts` as an open `array of string` — no enum — and `decision.Validate` did not check the values either. Typos (`platfrm`, `Platform`, `work_item`) and ad-hoc BC names would have silently entered the SSOT. The areas field was already enumerated/enforced; bounded_contexts was asymmetric. Same kind of asymmetry D031 surfaced for forbidden_paths data+schema pairs.",
+      "examples": [
+        "Decision with `bounded_contexts: [\"platform\"]` or `[\"work-item\"]` validates as before.",
+        "Decision with `bounded_contexts: [\"platfrm\"]` (typo) is rejected with 'scope.bounded_contexts: unknown bounded context \"platfrm\"' — both at JSON Schema validation time and at decision.Validate time."
+      ],
+      "counterexamples": [
+        "Extending the enum is allowed via a decision that updates BOTH decisions/schema.riido.json AND internal/decision.validBoundedContexts together — the prose rule in C-020 is paired with a Validate-mirrors-schema convention (same as ValidateAreas, ValidateMap, etc.).",
+        "Adding a NEW bounded context without a decision (e.g. ad-hoc `tooling-platform`) is rejected — the whole point is that bounded contexts are a small, deliberate vocabulary, not free-form labels."
+      ],
+      "guard_candidate": { "tool": "internal/decision.Validate (D036) — validBoundedContexts map mirrors decisions/schema.riido.json's scope.bounded_contexts enum. Both layers reject unknown BCs: JSON Schema rejects parse-time; decision.Validate rejects load-time before any cross-check runs. Test TestValidateRejectsUnknownBoundedContexts covers 5 typo variants.", "status": "implemented" },
+      "decision": "036-bcs-enum"
     }
   ]
 }
