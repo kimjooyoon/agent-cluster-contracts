@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-cluster.example/contracts/decisions/schema.riido.json",
+  "title": "Decision Record",
+  "description": "Schema for decision records under contracts/decisions/YYYY/MM/DD/<id>.decision.riido.json. Authoritative for any agent or tool reading or writing decision records.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "owner",
+    "status",
+    "scope",
+    "source",
+    "evidence",
+    "affected_repos",
+    "ssot_owner",
+    "generated_artifacts",
+    "guards",
+    "examples",
+    "counterexamples",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9][a-z0-9-]*$",
+      "description": "Zero-padded sequence number plus kebab-case slug, e.g. '001-initial-agreement'. Globally unique across all decision records."
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string", "minLength": 1, "description": "GitHub login of the decision owner." },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "accepted", "superseded", "rejected"]
+    },
+    "weak": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if this decision does not remove future ambiguity. Weak decisions never block merges."
+    },
+    "scope": {
+      "type": "object",
+      "required": ["bounded_contexts", "areas"],
+      "additionalProperties": false,
+      "properties": {
+        "bounded_contexts": { "type": "array", "items": { "type": "string" } },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["dsl", "ir", "concept-map", "ssot-dep-map", "tooling", "ci", "security", "backend", "frontend", "deployment", "governance"]
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "enum": ["top_down", "bottom_up", "generated", "imported"],
+      "description": "Where this decision originated. See docs/agent-work-protocol.md and the devpattern tool."
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["kind", "ref"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["file", "url", "pr", "issue", "ci-run", "log", "incident", "conversation", "decision"]
+          },
+          "ref": { "type": "string", "minLength": 1 },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "affected_repos": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["agent-cluster-contracts", "agent-cluster-backend", "agent-cluster-frontend"]
+      }
+    },
+    "ssot_owner": {
+      "type": "string",
+      "enum": ["agent-cluster-contracts", "agent-cluster-backend", "agent-cluster-frontend"],
+      "description": "The single repo that holds the source of truth for whatever this decision governs."
+    },
+    "generated_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repo", "path", "from"],
+        "additionalProperties": false,
+        "properties": {
+          "repo": { "type": "string" },
+          "path": { "type": "string" },
+          "from": { "type": "string", "description": "DSL or IR path this artifact is generated from." }
+        }
+      }
+    },
+    "guards": {
+      "type": "array",
+      "description": "Mechanisms that enforce this decision automatically. An empty array means 'guard candidate'.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "ref"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["go-tool", "github-action", "pre-commit-hook", "test", "schema", "generated-check", "manual-review"]
+          },
+          "ref": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "candidate", "deprecated"], "default": "active" }
+        }
+      }
+    },
+    "examples": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Concrete examples of the rule applied correctly. At least one is required."
+    },
+    "counterexamples": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Concrete examples of the rule violated, with explanation. Empty allowed for foundational decisions."
+    },
+    "supersedes": { "type": "array", "items": { "type": "string" } },
+    "superseded_by": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date" },
+    "accepted_at": { "type": ["string", "null"], "format": "date" },
+    "notes": { "type": "string" }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0",
+  "owner": "agent-cluster-contracts",
+  "description": "External research citations. Every item must have a source URL, retrieval date, relevant claim, affected decision id, confidence, and a review/expiration date. If a claim is asserted without a citation here, it is not authoritative.",
+  "items": [],
+  "policy": {
+    "missing_citation_is_weak": true,
+    "default_review_window_days": 90,
+    "confidence_levels": ["high", "medium", "low"]
+  }
+}

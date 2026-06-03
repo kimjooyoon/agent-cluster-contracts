@@ -1,0 +1,33 @@
+# Go build output
+/bin/
+*.test
+*.out
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# Secrets — never commit any of these patterns
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials.json
+service-account*.json
+
+# Local-only state
+/var/
+/tmp/
+*.local.json
+*.local.yaml
+
+# Knowledge index (rebuildable from sources — never SSOT)
+.knowledge/

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-cluster.example/contracts/concept-map/schema.riido.json",
+  "title": "Concept Map",
+  "description": "Schema for the single concept map. Captures relationships and constraints that DSL cannot yet express. Split into multiple maps only when evidence shows that one map causes drift, ownership conflict, or query ambiguity (record that decision before splitting).",
+  "type": "object",
+  "required": ["version", "concepts", "relationships", "constraints"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "owner": { "type": "string", "default": "agent-cluster-contracts" },
+    "concepts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "owner", "description", "examples"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+          "kind": {
+            "type": "string",
+            "enum": ["aggregate", "entity", "value-object", "event", "policy", "view", "process", "actor", "boundary", "artifact"]
+          },
+          "owner": {
+            "type": "string",
+            "enum": ["agent-cluster-contracts", "agent-cluster-backend", "agent-cluster-frontend"]
+          },
+          "description": { "type": "string", "minLength": 1 },
+          "examples": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "decision": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9]{3}-[a-z0-9][a-z0-9-]*$",
+            "description": "Decision record id that introduced or last updated this concept."
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "kind", "to", "example"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["emits", "consumes", "owns", "references", "supersedes", "implements", "displays", "constrains"]
+          },
+          "to": { "type": "string" },
+          "example": { "type": "string", "minLength": 1 },
+          "decision": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Rules expressed in prose with at least one example each. Promote to DSL when the pattern is stable.",
+      "items": {
+        "type": "object",
+        "required": ["id", "rule", "rationale", "examples"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^C-[0-9]{3}$" },
+          "rule": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 },
+          "examples": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "counterexamples": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "guard_candidate": {
+            "type": "object",
+            "description": "If non-null, describes the Go tool / CI gate that should eventually enforce this constraint automatically.",
+            "properties": {
+              "tool": { "type": "string" },
+              "status": { "type": "string", "enum": ["pending", "implemented", "deprecated"] }
+            },
+            "additionalProperties": false
+          },
+          "decision": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}
