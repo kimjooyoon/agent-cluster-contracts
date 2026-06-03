@@ -4,5 +4,5 @@
   "expected": "pass",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "Validate governance decision acceptance for evidence-backed top-down records"
+  "purpose": "Validate an accepted top-down governance decision with explicit evidence reference"
 }
