@@ -281,6 +281,40 @@ type FixtureCheck struct {
 	Reason   string `json:"reason"`
 }
 
+// purposeBanlist is the decoded purpose-banlist.riido.json. Decision 018.
+type purposeBanlist struct {
+	Banned []struct {
+		Normalized        string `json:"normalized"`
+		SeededByDecision  string `json:"seeded_by_decision"`
+		Reason            string `json:"reason"`
+	} `json:"banned"`
+}
+
+// loadPurposeBanlist reads root/purpose-banlist.riido.json. Returns empty
+// list (not error) when the file is absent — keeps probe fixtures usable in
+// fresh-clone test trees that don't have the banlist yet.
+func loadPurposeBanlist(root string) purposeBanlist {
+	var bl purposeBanlist
+	path := filepath.Join(root, "purpose-banlist.riido.json")
+	if _, err := os.Stat(path); err != nil {
+		return bl
+	}
+	_ = jsonutil.ReadFile(path, &bl)
+	return bl
+}
+
+// banlistMatch returns the seeded_by_decision and reason for the first
+// banlist entry whose normalized form equals normalizedPurpose. Empty
+// strings if no match.
+func banlistMatch(bl purposeBanlist, normalizedPurpose string) (decision, reason string) {
+	for _, b := range bl.Banned {
+		if b.Normalized == normalizedPurpose {
+			return b.SeededByDecision, b.Reason
+		}
+	}
+	return "", ""
+}
+
 // purposeNormalizationStrip removes mechanical noise that an agent might
 // append to make duplicate purposes look unique. Decision 017 introduced
 // this. Stripped patterns:
@@ -368,6 +402,9 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 	}
 	seenPurposes := map[purposeKey]string{}
 
+	// Decision 018: persistent banlist of known noise templates.
+	banlist := loadPurposeBanlist(root)
+
 	for _, p := range pairs {
 		check := verifyOneFixture(p.fixturePath, p.category)
 		// On top of the per-fixture check, enforce purpose-based dedup.
@@ -379,19 +416,29 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 		_ = jsonutil.ReadFile(metaPath, &meta)
 		if meta.FixtureType != "" && check.OK {
 			normalized := NormalizePurpose(meta.Purpose)
-			key := purposeKey{
-				category:    p.category,
-				fixtureType: meta.FixtureType,
-				purpose:     normalized,
-			}
-			if firstPath, dup := seenPurposes[key]; dup {
+			// D018 banlist check — happens before dedup so banned templates
+			// fail even on first occurrence in this set.
+			if decision, reason := banlistMatch(banlist, normalized); decision != "" {
 				check.OK = false
 				check.Reason = fmt.Sprintf(
-					"duplicate purpose (normalized: %q): same (category=%s, fixture_type=%s) already claimed by %s — declare a meaningfully novel purpose, not a timestamp- or cycle-suffixed variant",
-					normalized, p.category, meta.FixtureType, firstPath,
+					"banned purpose template (normalized: %q) — added by decision %s; reason: %s",
+					normalized, decision, reason,
 				)
 			} else {
-				seenPurposes[key] = p.fixturePath
+				key := purposeKey{
+					category:    p.category,
+					fixtureType: meta.FixtureType,
+					purpose:     normalized,
+				}
+				if firstPath, dup := seenPurposes[key]; dup {
+					check.OK = false
+					check.Reason = fmt.Sprintf(
+						"duplicate purpose (normalized: %q): same (category=%s, fixture_type=%s) already claimed by %s — declare a meaningfully novel purpose, not a timestamp- or cycle-suffixed variant",
+						normalized, p.category, meta.FixtureType, firstPath,
+					)
+				} else {
+					seenPurposes[key] = p.fixturePath
+				}
 			}
 		}
 		if !check.OK {

@@ -1,0 +1,48 @@
+{
+  "id": "018-fixture-purpose-banlist",
+  "title": "Banned-template purpose list: persistent rejection of known noise templates (closes D017 first-occurrence gap)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "015-fixture-purpose-and-dedup"
+    },
+    {
+      "kind": "decision",
+      "ref": "017-fixture-purpose-normalized-dedup"
+    },
+    {
+      "kind": "log",
+      "ref": "PR #74 cycle-37 with purpose 'Ensure a unique accepted decision fixture validates successfully (1780486044)' merged after D017"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 D017 first-occurrence gap observation"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Seed entry (this decision): 'ensure a unique accepted decision fixture validates successfully' — the cycle-N template the dumb-agent has been re-filing since D015 landed. After D018",
+    "any fixture whose purpose normalizes to this is rejected unconditionally",
+    "even if it is the only such fixture in the set."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

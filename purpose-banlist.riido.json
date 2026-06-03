@@ -1,0 +1,12 @@
+{
+  "version": "0.1.0",
+  "owner": "agent-cluster-contracts",
+  "description": "Persistent ban list of fixture purpose templates that are known noise. probe fixtures rejects any fixture whose NormalizePurpose(meta.purpose) matches one of these entries — even if it is the only such fixture in the set (which is the gap D018 closes in D017's dedup). Entries are added ONLY via decision records, never silently. Removal also requires a decision (superseding the one that added the entry).",
+  "banned": [
+    {
+      "normalized": "ensure a unique accepted decision fixture validates successfully",
+      "seeded_by_decision": "018-fixture-purpose-banlist",
+      "reason": "Template used by dumb-agent cycle-N fixtures (cycle-31..cycle-37). Each cycle re-filed this purpose with a different timestamp suffix; the deleted fixtures no longer dedup against the new ones. Banning the normalized template forces a genuinely novel purpose."
+    }
+  ]
+}

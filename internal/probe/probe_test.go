@@ -362,6 +362,65 @@ func TestFixturesRejectsTimestampSuffixedDuplicate(t *testing.T) {
 	}
 }
 
+// Decision 018 — purpose banlist (persistent rejection of known templates).
+
+func TestFixturesBanlistRejectsFirstOccurrence(t *testing.T) {
+	// The exact gap D017 left: a SINGLE fixture (no other to dedup against)
+	// using a banned template still gets rejected.
+	root := t.TempDir()
+	write(t, filepath.Join(root, "purpose-banlist.riido.json"),
+		`{"version":"0.1.0","owner":"agent-cluster-contracts","banned":[
+		  {"normalized":"ensure a unique accepted decision fixture validates successfully",
+		   "seeded_by_decision":"018-fixture-purpose-banlist",
+		   "reason":"test"}
+		]}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/lone.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/lone.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"Ensure a unique accepted decision fixture validates successfully (9999999999)"}`)
+	res, _ := VerifyFixtures(root)
+	if res.OK {
+		t.Errorf("expected banlist to reject first-occurrence banned template, got OK")
+	}
+	banned := false
+	for _, c := range res.Checks {
+		if strings.Contains(c.Reason, "banned purpose template") {
+			banned = true
+		}
+	}
+	if !banned {
+		t.Errorf("expected 'banned purpose template' reason, got %+v", res.Checks)
+	}
+}
+
+func TestFixturesBanlistDoesNotAffectLegitimatePurposes(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "purpose-banlist.riido.json"),
+		`{"version":"0.1.0","owner":"agent-cluster-contracts","banned":[
+		  {"normalized":"ensure a unique accepted decision fixture validates successfully",
+		   "seeded_by_decision":"018-fixture-purpose-banlist",
+		   "reason":"test"}
+		]}`)
+	write(t, filepath.Join(root, "fixtures/positive/decision/good.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/good.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"decision with all required fields present"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected legitimate purpose to pass, got %+v", res.Checks)
+	}
+}
+
+func TestFixturesBanlistMissingFileIsOK(t *testing.T) {
+	// No banlist file → no entries → nothing banned.
+	root := t.TempDir()
+	write(t, filepath.Join(root, "fixtures/positive/decision/lone.json"), validDecisionJSON())
+	write(t, filepath.Join(root, "fixtures/positive/decision/lone.meta.json"),
+		`{"fixture_type":"decision","expected":"pass","purpose":"some unique purpose"}`)
+	res, _ := VerifyFixtures(root)
+	if !res.OK {
+		t.Errorf("expected OK when banlist file is absent, got %+v", res.Checks)
+	}
+}
+
 func TestFixturesIRAggregateRejectsExtraQueryFields(t *testing.T) {
 	root := t.TempDir()
 	// aggregate doc carrying a wire_name → schema rule says forbidden for non-query
