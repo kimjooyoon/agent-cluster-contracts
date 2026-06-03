@@ -1,5 +1,4 @@
 {
-  "fixture_type": "decision",
   "kind": "aggregate",
   "name": "work-item",
   "slots": {
