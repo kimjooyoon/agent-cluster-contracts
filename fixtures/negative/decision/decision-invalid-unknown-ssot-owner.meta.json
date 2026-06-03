@@ -4,5 +4,6 @@
   "expected": "fail",
   "from_role": "dumb-agent",
   "expected_error_contains": "ssot_owner",
-  "supersedes": null
+  "supersedes": null,
+  "purpose": "decision invalid unknown ssot owner"
 }

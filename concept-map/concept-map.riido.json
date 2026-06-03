@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "owner": "agent-cluster-contracts",
   "concepts": [
     {
@@ -272,6 +272,21 @@
       ],
       "guard_candidate": { "tool": "wirelint (tools/wirelint) — scans for quoted literal occurrences of any kind=query wire_name outside generated-client paths. Runs in contracts.yml and in each consumer repo's contracts-drift.yml.", "status": "implemented" },
       "decision": "006-ssot-extension-graphql-via-dsl"
+    },
+    {
+      "id": "C-008",
+      "rule": "Every fixture .meta.json must declare a non-empty `purpose` field. No two fixtures sharing the same (category, fixture_type) triple may share the same purpose value. Probe fixtures rejects missing purpose AND duplicate-purpose entries.",
+      "rationale": "Without purpose+dedup, an agent (notably dumb-agent in cycle mode) can flood fixtures/ with structurally identical entries that differ only by id/title/timestamp. They pass the verifier — but they test nothing new. C-008 forces each fixture to declare WHY it is novel and rejects clones, shaping the agent toward coverage growth instead of noise.",
+      "examples": [
+        "fixtures/positive/decision/decision-valid-minimal.meta.json declares purpose='decision valid minimal' — clear, unique within (positive, decision).",
+        "fixtures/negative/decision/decision-invalid-missing-evidence.meta.json declares purpose='decision invalid missing evidence' — distinct from the missing-owner / missing-status / missing-title cousins."
+      ],
+      "counterexamples": [
+        "Pre-D015 noise: 19 decision-positive-cycle-<timestamp>.json fixtures with no purpose field and identical content. After D015 they're rejected.",
+        "Two negative fixtures both declaring purpose='catches a parse error' — only one is allowed; the second is a duplicate even if the JSON content differs."
+      ],
+      "guard_candidate": { "tool": "probe fixtures (D015): reads meta.purpose, fails on empty or duplicate (category, fixture_type, purpose) triples", "status": "implemented" },
+      "decision": "015-fixture-purpose-and-dedup"
     }
   ]
 }

@@ -255,7 +255,7 @@ func joinErrors(errs []error) string {
 
 // FixtureMeta is the schema of <name>.meta.json next to each fixture.
 type FixtureMeta struct {
-	// FixtureType identifies which validator to run. v1 supports: "decision".
+	// FixtureType identifies which validator to run.
 	FixtureType string `json:"fixture_type"`
 	// Expected is "pass" or "fail".
 	Expected string `json:"expected"`
@@ -266,6 +266,11 @@ type FixtureMeta struct {
 	ExpectedErrorContains string `json:"expected_error_contains,omitempty"`
 	// FromRole records which role created the fixture (for audit).
 	FromRole string `json:"from_role,omitempty"`
+	// Purpose declares what this fixture proves. Decision 015 added this as
+	// required. Two fixtures in the same (category, fixture_type) cannot
+	// share the same purpose — that's the dedup rule that catches structurally
+	// identical noise (e.g. cycle-N fixtures that only differ by id/title).
+	Purpose string `json:"purpose"`
 }
 
 // FixtureCheck is one fixture's outcome.
@@ -321,8 +326,41 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 	}
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].fixturePath < pairs[j].fixturePath })
 
+	// dedup tracks (category, fixture_type, purpose) → first path that claimed
+	// it. Two fixtures sharing the same triple are flagged as duplicates
+	// (decision 015).
+	type purposeKey struct {
+		category    string
+		fixtureType string
+		purpose     string
+	}
+	seenPurposes := map[purposeKey]string{}
+
 	for _, p := range pairs {
 		check := verifyOneFixture(p.fixturePath, p.category)
+		// On top of the per-fixture check, enforce purpose-based dedup.
+		// We need to re-read the meta to access Purpose; verifyOneFixture
+		// already did this but didn't surface it. Reload (cheap; fixtures
+		// are tiny).
+		metaPath := strings.TrimSuffix(p.fixturePath, ".json") + ".meta.json"
+		var meta FixtureMeta
+		_ = jsonutil.ReadFile(metaPath, &meta)
+		if meta.FixtureType != "" && check.OK {
+			key := purposeKey{
+				category:    p.category,
+				fixtureType: meta.FixtureType,
+				purpose:     meta.Purpose,
+			}
+			if firstPath, dup := seenPurposes[key]; dup {
+				check.OK = false
+				check.Reason = fmt.Sprintf(
+					"duplicate purpose %q: same (category=%s, fixture_type=%s, purpose) triple already claimed by %s — fixtures must each declare a novel purpose",
+					meta.Purpose, p.category, meta.FixtureType, firstPath,
+				)
+			} else {
+				seenPurposes[key] = p.fixturePath
+			}
+		}
 		if !check.OK {
 			res.OK = false
 		}
@@ -356,6 +394,12 @@ func verifyOneFixture(path, category string) FixtureCheck {
 		return FixtureCheck{
 			Path: path, Category: category, OK: false,
 			Reason: "positive fixture must declare meta.expected=pass",
+		}
+	}
+	if strings.TrimSpace(meta.Purpose) == "" {
+		return FixtureCheck{
+			Path: path, Category: category, OK: false,
+			Reason: "meta.purpose required (decision 015): declare what this fixture proves",
 		}
 	}
 

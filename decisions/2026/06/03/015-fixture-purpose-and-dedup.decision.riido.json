@@ -1,0 +1,46 @@
+{
+  "id": "015-fixture-purpose-and-dedup",
+  "title": "Fixture meta.purpose required + per-(category,fixture_type) dedup (drives dumb-agent toward novel candidates)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "tooling",
+      "governance"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "19 dumb-agent decision-positive-cycle-* fixtures observed in fixtures/positive/decision/"
+    },
+    {
+      "kind": "decision",
+      "ref": "005-dumb-agent-probe-baseline-and-fixture-verifier"
+    },
+    {
+      "kind": "decision",
+      "ref": "012-dumb-agent-automerge-workflow"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal continuing ssot improvement"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Cleanup in this PR: 19 cycle-noise fixture pairs deleted; canonical decision-valid-minimal gets a descriptive purpose."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}
