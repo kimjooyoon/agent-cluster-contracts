@@ -1,0 +1,59 @@
+{
+  "id": "030-content-hash-dedup",
+  "title": "Canonical-content SHA-256 dedup for decision fixtures - the final structural defense",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": ["platform"],
+    "areas": ["governance"]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "log",
+      "ref": "PR #97 landed with id 000-fixture-positive-governance-topdown and title 'Positive fixture: top-down accepted governance decision' — no dumb-agent substring, clean filename, clean purpose. The predicted exhaustion of D028's 6-layer structural fingerprinting. Fixture content is structurally identical to canonical decision-valid-minimal modulo identity-only fields"
+    },
+    {
+      "kind": "decision",
+      "ref": "028-dumb-agent-title-marker — D028's 6 structural layers (which D030 supersedes as the final defense)"
+    },
+    {
+      "kind": "decision",
+      "ref": "015-fixture-purpose-required-and-dedup — D015's purpose-string dedup is the first dedup defense; D030 is the canonical-content-shape dedup that catches what wording variations slip past"
+    },
+    {
+      "kind": "file",
+      "ref": "fixtures/positive/decision/decision-positive-governance-topdown.* — pre-deletion sample of the D028-bypass that D030 now catches"
+    }
+  ],
+  "affected_repos": ["agent-cluster-contracts"],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": [
+    {
+      "kind": "go-tool",
+      "ref": "internal/probe.VerifyFixtures — seenContentHashes map keyed by (category, fixture_type, sha256(canonicalDecisionContentHash(data))); the canonicalizer strips id/title/examples/counterexamples/evidence/created_at/notes and re-marshals so map-key ordering is deterministic",
+      "status": "implemented"
+    },
+    {
+      "kind": "test",
+      "ref": "internal/probe/probe_test.go TestFixturesD030RejectsStructurallyIdenticalDecisionFixtures + TestFixturesD030AcceptsStructurallyDifferentDecisionFixtures + TestFixturesD030DoesNotApplyToNonDecisionFixtures + TestCanonicalDecisionContentHashIsDeterministic",
+      "status": "implemented"
+    },
+    {
+      "kind": "schema",
+      "ref": "concept-map C-015 — codifies the rule and the stripped-field set",
+      "status": "implemented"
+    }
+  ],
+  "examples": [
+    "Bypass fixture from PR #97 vs canonical decision-valid-minimal: stripping (id, title, examples, counterexamples, evidence, created_at) leaves {affected_repos, generated_artifacts:[], guards:[], owner, scope, source, ssot_owner, status} identical → same canonical hash → D030 rejects the second occurrence.",
+    "A future fixture with status=proposed instead of accepted has a different canonical hash → D030 accepts it because it exercises a new validator path.",
+    "A future fixture with scope.areas=['observability'] instead of ['governance'] has a different canonical hash → accepted because the scope content differs."
+  ],
+  "counterexamples": [
+    "ir-aggregate, ir-event, query fixtures are intentionally NOT covered by D030; they distinguish on `name` which encodes the entity being modeled, so a name-aware canonicalizer is required. Follow-up decision when warranted.",
+    "Identity fields (id, title, examples, counterexamples, evidence, created_at, notes) being different is NOT enough to pass — those don't drive validator outcomes. Two fixtures must differ in schema-relevant content (status, scope, source, etc.) to both be accepted."
+  ],
+  "created_at": "2026-06-03"
+}

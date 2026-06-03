@@ -167,6 +167,17 @@ applied in order; the first one that rejects wins:
    matches a banlist entry is rejected with a citation of the seeding
    decision — even if it's the only such fixture in the set. **Deleting
    the original does NOT reset the lockout.**
+5. **Canonical content hash (D030, decision fixtures only)**: probe
+   fixtures strips identity-only fields (`id`, `title`, `examples`,
+   `counterexamples`, `evidence`, `created_at`, `notes`) from the
+   data JSON, hashes the rest, and rejects any fixture whose hash
+   matches a fixture already seen in the same (category,
+   fixture_type) bucket. **Two fixtures whose schema-relevant content
+   is identical add zero validator coverage** — declare a fixture
+   whose status/scope/source/affected_repos/etc. actually differ.
+   This is the architecturally final structural defense; ir-aggregate
+   and ir-event are not yet covered (separate decision when
+   warranted).
 
 ##### Fixture id convention (D023 + D026)
 
