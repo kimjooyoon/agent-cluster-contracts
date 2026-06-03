@@ -4,5 +4,5 @@
   "expected": "pass",
   "from_role": "dumb-agent",
   "supersedes": null,
-  "purpose": "Validate that a governance decision with platform bounded context is accepted for cycle 44 coverage"
+  "purpose": "Validate accepted top-down governance decisions with explicit scoped evidence path"
 }
