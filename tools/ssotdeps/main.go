@@ -20,6 +20,8 @@ func main() {
 	switch os.Args[1] {
 	case "verify":
 		cmdVerify(os.Args[2:])
+	case "validate":
+		cmdValidate(os.Args[2:])
 	case "show":
 		cmdShow(os.Args[2:])
 	case "-h", "--help", "help":
@@ -73,6 +75,40 @@ func cmdVerify(args []string) {
 	}
 }
 
+func cmdValidate(args []string) {
+	fs := flag.NewFlagSet("validate", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "JSON output")
+	fs.Parse(args)
+	root, err := findroot.FromCWD()
+	if err != nil {
+		die(err)
+	}
+	m, err := ssotdeps.Load(root)
+	if err != nil {
+		die(err)
+	}
+	errs := ssotdeps.ValidateMap(m)
+	if *asJSON {
+		msgs := make([]string, len(errs))
+		for i, e := range errs {
+			msgs[i] = e.Error()
+		}
+		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": len(errs) == 0, "errors": msgs})
+	} else {
+		if len(errs) == 0 {
+			fmt.Printf("ssotdeps validate: OK (%d artifacts)\n", len(m.SsotArtifacts))
+		} else {
+			fmt.Fprintf(os.Stderr, "ssotdeps validate: %d error(s)\n", len(errs))
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, "  -", e)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		os.Exit(1)
+	}
+}
+
 func cmdShow(args []string) {
 	root, err := findroot.FromCWD()
 	if err != nil {
@@ -99,12 +135,17 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `ssotdeps — verify the SSOT dependency map
 
 Commands:
-  verify [--mode local|full] [--json]
+  verify   [--mode local|full] [--json]
                     Check that every referenced path exists.
                     --mode full (default) also checks sibling backend/frontend
                     consumer paths and CI gates when those repos are present.
                     --mode local skips all sibling-repo checks; use this for
                     the dumb-agent probe baseline. Exit 1 on failure.
+  validate [--json]
+                    Check ssot-dependency-map.riido.json against
+                    ssot-dependency-map.schema.json (mirrored by ValidateMap).
+                    Catches typos and structural issues that JSON parse alone
+                    silently accepts. Exit 1 on schema violations.
   show              Print the loaded dep map as JSON.`)
 }
 

@@ -76,6 +76,13 @@ out. Use this when you do not control whether sibling repos are present.
 sibling-repo consumer paths and CI gates when those repos exist. Used by
 smart-agent local dev and full cross-repo CI. **Do not weaken this.**
 
+`ssotdeps validate` (decision 011) checks `ssot-dependency-map.riido.json`
+against `ssot-dependency-map.schema.json` — mirrored by
+`internal/ssotdeps.ValidateMap`. Catches typos, missing required fields,
+duplicate IDs, unknown artifact kinds, malformed entries. Runs as part of
+`probe preflight` (check name `ssot-dep-map-validate`) and as a dedicated
+step in `contracts.yml`.
+
 ## conceptmap
 
 ```sh

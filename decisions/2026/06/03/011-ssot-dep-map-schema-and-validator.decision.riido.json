@@ -1,0 +1,50 @@
+{
+  "id": "011-ssot-dep-map-schema-and-validator",
+  "title": "ssot-dependency-map SSOT gets a schema + code-mirrored validator (backlog #9; completes the pattern)",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance",
+      "tooling"
+    ]
+  },
+  "source": "bottom_up",
+  "evidence": [
+    {
+      "kind": "decision",
+      "ref": "009-agent-roles-schema-and-validator"
+    },
+    {
+      "kind": "file",
+      "ref": "ssot-dependency-map.riido.json"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/ssotdeps/ssotdeps.go"
+    },
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 user goal continuing ssot improvement"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "Closes the pattern symmetry: every SSOT artifact now has a schema + a code-mirrored validator (decisions",
+    "concept-map",
+    "ir",
+    "agent-roles",
+    "ssot-dep-map). This was backlog #9 — the last unschematized SSOT."
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

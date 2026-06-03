@@ -53,6 +53,9 @@ jobs:
       - name: Verify SSOT dependency map (paths must exist)
         run: ./bin/ssotdeps verify
 
+      - name: Validate SSOT dep map schema (decision 011)
+        run: ./bin/ssotdeps validate
+
       - name: Validate concept map
         run: ./bin/conceptmap verify
 

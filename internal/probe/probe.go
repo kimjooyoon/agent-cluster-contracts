@@ -70,6 +70,7 @@ func Preflight(root string) PreflightResult {
 
 	checks = append(checks, runDecisions(root))
 	checks = append(checks, runSsotdeps(root))
+	checks = append(checks, runSsotdepsValidate(root))
 	checks = append(checks, runConceptmap(root))
 	checks = append(checks, runAgentRoles(root))
 	checks = append(checks, runSecretscan(root))
@@ -139,6 +140,25 @@ func runSsotdeps(root string) CheckResult {
 		Name: "ssotdeps-local", OK: true,
 		Summary: fmt.Sprintf("OK (%d artifacts, %d links, %d gates, mode=local)",
 			len(m.SsotArtifacts), len(m.ConsumptionLinks), len(m.CIGates)),
+	}
+}
+
+func runSsotdepsValidate(root string) CheckResult {
+	m, err := ssotdeps.Load(root)
+	if err != nil {
+		return CheckResult{Name: "ssot-dep-map-validate", OK: false, Summary: "load: " + err.Error()}
+	}
+	errs := ssotdeps.ValidateMap(m)
+	if len(errs) > 0 {
+		return CheckResult{
+			Name: "ssot-dep-map-validate", OK: false,
+			Summary: fmt.Sprintf("%d error(s)", len(errs)),
+			Detail:  joinErrors(errs),
+		}
+	}
+	return CheckResult{
+		Name: "ssot-dep-map-validate", OK: true,
+		Summary: fmt.Sprintf("OK (%d artifacts)", len(m.SsotArtifacts)),
 	}
 }
 
