@@ -333,6 +333,45 @@ var (
 	purposeCollapseSpaces    = regexp.MustCompile(`\s+`)
 )
 
+// noiseMarkerReason returns a non-empty rejection reason if meta or the
+// fixture data carry the dumb-agent's generator fingerprint:
+//
+//   - meta.Purpose (RAW, before normalize) contains a `cycle-N` token —
+//     legitimate purposes describe the rule being exercised, not the loop
+//     iteration that produced the fixture.
+//   - For decision fixtures, the data file's `id` starts with `999-` —
+//     the 999-prefix is reserved as a "do not use" placeholder; no
+//     accepted decision will ever live there.
+//
+// Decision 023 introduced this. The signal is *structural* (the
+// generator's tells), not *semantic* (what the purpose words say), so
+// the dumb-agent can't dodge it by rephrasing alone — it would have to
+// change its generator code (which lives outside its allowed paths).
+func noiseMarkerReason(meta FixtureMeta, dataPath string) string {
+	if cycleMarkerRe.MatchString(meta.Purpose) {
+		return fmt.Sprintf(
+			"noise marker (D023): purpose %q contains a `cycle-N` token. Purposes must describe the rule under test, not the iteration that produced the fixture",
+			meta.Purpose,
+		)
+	}
+	if meta.FixtureType == "decision" {
+		var data struct {
+			ID string `json:"id"`
+		}
+		if err := jsonutil.ReadFile(dataPath, &data); err == nil {
+			if strings.HasPrefix(data.ID, "999-") {
+				return fmt.Sprintf(
+					"noise marker (D023): decision fixture id %q starts with `999-` (reserved placeholder range). Use a real decision id pattern (NNN-slug, NNN ∉ 999)",
+					data.ID,
+				)
+			}
+		}
+	}
+	return ""
+}
+
+var cycleMarkerRe = regexp.MustCompile(`(?i)\bcycle[\s\-]\d+\b`)
+
 // NormalizePurpose returns the comparable form used by D015 dedup after D017.
 // Two purposes are duplicates if their NormalizePurpose results are equal.
 func NormalizePurpose(p string) string {
@@ -415,6 +454,19 @@ func VerifyFixtures(root string) (FixturesResult, error) {
 		var meta FixtureMeta
 		_ = jsonutil.ReadFile(metaPath, &meta)
 		if meta.FixtureType != "" && check.OK {
+			// D023: structural noise-marker check. Banlist (D018) catches only
+			// templates that have already shown up at least once; this catches
+			// the dumb-agent's generator fingerprint on first occurrence so
+			// each new wording variant doesn't need its own decision record.
+			if reason := noiseMarkerReason(meta, p.fixturePath); reason != "" {
+				check.OK = false
+				check.Reason = reason
+				if !check.OK {
+					res.OK = false
+				}
+				res.Checks = append(res.Checks, check)
+				continue
+			}
 			normalized := NormalizePurpose(meta.Purpose)
 			// D018 banlist check — happens before dedup so banned templates
 			// fail even on first occurrence in this set.
