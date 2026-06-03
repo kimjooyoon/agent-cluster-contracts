@@ -1,0 +1,89 @@
+{
+  "version": "0.1.0",
+  "owner": "agent-cluster-contracts",
+  "description": "SSOT for agent roles. Each role declares allowed_paths (glob patterns) and forbidden_paths (glob patterns). agentguard verify reads the PR's changed-file list and the declared role, then rejects diffs that touch forbidden paths or contain only-not-allowed paths.\n\nA role's effective rule is: every changed file must match at least one allowed_paths glob, AND must not match any forbidden_paths glob. forbidden_paths win on conflict.\n\nSee contracts/AGENT_CONTRACT.md for the human-readable mirror.",
+  "roles": [
+    {
+      "id": "designer",
+      "label": "Designer / human-driven implementer",
+      "description": "The primary author class. Can touch any file in any repo. Subject to manual review and other CI gates, not to the path allowlist.",
+      "decision": "001-initial-agreement",
+      "allowed_paths": ["**"],
+      "forbidden_paths": [],
+      "pr_isolation": {
+        "candidate_only": false,
+        "guard_only": false
+      }
+    },
+    {
+      "id": "dumb-agent",
+      "label": "Contract Fuzzer Agent / IR Mutation Scout",
+      "description": "Low-context closed-loop probe. Generates small candidates and lets verifiers decide. Never makes semantic decisions, never modifies accepted contracts, schemas, decisions, verifier code, or CI workflows. Allowed task types: positive fixture, negative fixture, fuzz corpus expansion, manifest normalization, failure minimization.",
+      "decision": "002-dumb-agent-role",
+      "allowed_paths": [
+        "contracts/fixtures/positive/**",
+        "contracts/fixtures/negative/**",
+        "contracts/fuzz/corpus/**",
+        "contracts/ir/candidates/**",
+        "contracts/reports/**"
+      ],
+      "forbidden_paths": [
+        "contracts/dsl/**",
+        "contracts/ir/schema/**",
+        "contracts/ir/domain/**",
+        "contracts/decisions/**",
+        "contracts/concept-map/**",
+        "contracts/tools/**",
+        "contracts/internal/**",
+        "contracts/initial-agreement.md",
+        "contracts/agent-roles.riido.json",
+        "contracts/AGENT_CONTRACT.md",
+        "contracts/ssot-dependency-map.riido.json",
+        "contracts/go.mod",
+        "contracts/go.sum",
+        ".github/workflows/**",
+        "backend/**",
+        "frontend/**"
+      ],
+      "pr_isolation": {
+        "candidate_only": true,
+        "guard_only": false,
+        "rationale": "Forbidding the dumb agent from touching verifier code in the same PR prevents it from weakening tests to make its candidates pass."
+      },
+      "max_files_per_pr": 5,
+      "auto_merge_eligible": false,
+      "auto_merge_paths": [
+        "contracts/fixtures/positive/**",
+        "contracts/fixtures/negative/**",
+        "contracts/fuzz/corpus/**",
+        "contracts/reports/**"
+      ]
+    },
+    {
+      "id": "guard-author",
+      "label": "Verifier / schema / test author",
+      "description": "Modifies verifier logic, schemas, or tests. May NOT touch candidate-space in the same PR. Subject to manual review of the verifier change.",
+      "decision": "002-dumb-agent-role",
+      "allowed_paths": [
+        "contracts/tools/**",
+        "contracts/internal/**",
+        "contracts/decisions/schema.riido.json",
+        "contracts/concept-map/schema.riido.json",
+        "contracts/ir/schema/**",
+        "contracts/go.mod",
+        "contracts/go.sum",
+        ".github/workflows/**",
+        "**/*_test.go"
+      ],
+      "forbidden_paths": [
+        "contracts/fixtures/**",
+        "contracts/fuzz/**",
+        "contracts/ir/candidates/**"
+      ],
+      "pr_isolation": {
+        "candidate_only": false,
+        "guard_only": true
+      }
+    }
+  ]
+}

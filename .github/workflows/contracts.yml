@@ -1,0 +1,60 @@
+name: contracts
+
+# Merge-blocking gate for the contracts repo.
+#
+# Runs every executable guard introduced by decision 001-initial-agreement:
+#   - decision schema validation (tools/decision validate)
+#   - SSOT dependency map verification (tools/ssotdeps verify)
+#   - concept map validation (tools/conceptmap verify)
+#   - DSL → JSON IR drift check (tools/irdrift, which itself re-runs the
+#     SBCL emitter into a tmp tree and diffs against the committed ir/)
+#
+# Adding a new check requires a decision record. The new tool's binary is
+# added to the build step and a new run step is appended below.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Install SBCL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sbcl
+          sbcl --version
+
+      - name: Build verifier binaries
+        run: go build -o bin/ ./tools/...
+
+      - name: Show what we built
+        run: ls -la bin/
+
+      - name: Run unit tests
+        run: go test ./internal/...
+
+      - name: Validate every decision record against schema
+        run: ./bin/decision validate
+
+      - name: Verify SSOT dependency map (paths must exist)
+        run: ./bin/ssotdeps verify
+
+      - name: Validate concept map
+        run: ./bin/conceptmap verify
+
+      - name: Regenerate IR from DSL and check for drift
+        run: ./bin/irdrift

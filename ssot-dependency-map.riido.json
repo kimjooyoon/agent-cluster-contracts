@@ -1,0 +1,154 @@
+{
+  "version": "0.2.0",
+  "owner": "agent-cluster-contracts",
+  "description": "Declares the SSOT chain: which DSL files emit which IR, which IR files generate which artifacts in which consumer repos, and which CI gates protect each link. tools/ssotdeps verify reads this file.",
+  "ssot_artifacts": [
+    {
+      "id": "initial-agreement",
+      "kind": "decision",
+      "path": "decisions/2026/06/03/001-initial-agreement.decision.riido.json",
+      "schema": "decisions/schema.riido.json",
+      "mirrored_in": ["initial-agreement.md"],
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "concept-map",
+      "kind": "concept-map",
+      "path": "concept-map/concept-map.riido.json",
+      "schema": "concept-map/schema.riido.json",
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "ssot-dep-map",
+      "kind": "ssot-dependency-map",
+      "path": "ssot-dependency-map.riido.json",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "research-ledger",
+      "kind": "research",
+      "path": "docs/research/source-ledger.riido.json",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "dsl-core",
+      "kind": "dsl-source",
+      "path": "dsl/core.lisp",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "dsl-work-item",
+      "kind": "dsl-source",
+      "path": "dsl/domain/work-item.lisp",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "dsl-emitter",
+      "kind": "dsl-emitter",
+      "path": "dsl/emit-ir.lisp",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "ir-work-item",
+      "kind": "ir",
+      "path": "ir/domain/work-item.ir.json",
+      "schema": null,
+      "owned_by": "agent-cluster-contracts"
+    },
+    {
+      "id": "agent-roles",
+      "kind": "agent-roles",
+      "path": "agent-roles.riido.json",
+      "schema": null,
+      "mirrored_in": ["AGENT_CONTRACT.md"],
+      "owned_by": "agent-cluster-contracts"
+    }
+  ],
+  "generation_links": [
+    {
+      "from": "dsl/domain/work-item.lisp",
+      "emitter": "dsl/emit-ir.lisp",
+      "to": "ir/domain/work-item.ir.json",
+      "consumer_repo": "agent-cluster-contracts",
+      "guard": "tools/irdrift (run in contracts.yml)"
+    }
+  ],
+  "consumption_links": [
+    {
+      "ssot": "concept-map",
+      "consumer_repo": "agent-cluster-contracts",
+      "consumer_path": "tools/conceptmap/main.go",
+      "via": "internal/conceptmap loader",
+      "guard": "tools/conceptmap verify (run in contracts.yml)"
+    },
+    {
+      "ssot": "initial-agreement",
+      "consumer_repo": "agent-cluster-contracts",
+      "consumer_path": "initial-agreement.md",
+      "via": "human-readable mirror",
+      "guard": "manual review (verifier diff check is a guard candidate)"
+    },
+    {
+      "ssot": "ir-work-item",
+      "consumer_repo": "agent-cluster-contracts",
+      "consumer_path": "internal/irdrift/irdrift.go",
+      "via": "irdrift reads ir/domain/*.ir.json and compares against regenerated copy",
+      "guard": "tools/irdrift (run in contracts.yml)"
+    },
+    {
+      "ssot": "agent-roles",
+      "consumer_repo": "agent-cluster-contracts",
+      "consumer_path": "internal/agentguard/agentguard.go",
+      "via": "agentguard loads agent-roles.riido.json and applies the role's allowed/forbidden globs to the PR diff",
+      "guard": "dumb-agent-safety.yml workflow"
+    }
+  ],
+  "ci_gates": [
+    {
+      "repo": "agent-cluster-contracts",
+      "workflow": ".github/workflows/contracts.yml",
+      "verifies": [
+        "initial-agreement",
+        "concept-map",
+        "ssot-dep-map",
+        "research-ledger",
+        "dsl-core",
+        "dsl-work-item",
+        "dsl-emitter",
+        "ir-work-item",
+        "agent-roles"
+      ]
+    },
+    {
+      "repo": "agent-cluster-contracts",
+      "workflow": ".github/workflows/security.yml",
+      "verifies": ["raw-secret patterns in working tree"]
+    },
+    {
+      "repo": "agent-cluster-contracts",
+      "workflow": ".github/workflows/dumb-agent-safety.yml",
+      "verifies": ["agent-roles per-PR path allowlist enforcement"]
+    },
+    {
+      "repo": "agent-cluster-backend",
+      "workflow": ".github/workflows/security.yml",
+      "verifies": ["raw-secret patterns in working tree"],
+      "planned": true
+    },
+    {
+      "repo": "agent-cluster-frontend",
+      "workflow": ".github/workflows/security.yml",
+      "verifies": ["raw-secret patterns in working tree"],
+      "planned": true
+    }
+  ],
+  "pending": [
+    "Generation links for backend GraphQL schema and frontend client (added with first product slice past the bootstrap).",
+    "Cross-repo vocab scan (constraint C-001 enforcement)."
+  ]
+}

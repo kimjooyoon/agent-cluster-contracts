@@ -1,0 +1,53 @@
+{
+  "id": "002-dumb-agent-role",
+  "title": "Dumb-agent role: contract fuzzer bounded by candidate-space + PR isolation",
+  "owner": "kimjooyoon",
+  "status": "accepted",
+  "scope": {
+    "bounded_contexts": [
+      "platform"
+    ],
+    "areas": [
+      "governance",
+      "tooling",
+      "ci",
+      "security"
+    ]
+  },
+  "source": "top_down",
+  "evidence": [
+    {
+      "kind": "conversation",
+      "ref": "2026-06-03 mid-bootstrap user message defining dumb-agent / Contract Fuzzer Agent / IR Mutation Scout role"
+    },
+    {
+      "kind": "file",
+      "ref": "AGENT_CONTRACT.md"
+    },
+    {
+      "kind": "file",
+      "ref": "agent-roles.riido.json"
+    },
+    {
+      "kind": "file",
+      "ref": ".github/workflows/dumb-agent-safety.yml"
+    },
+    {
+      "kind": "file",
+      "ref": "internal/agentguard/agentguard_test.go"
+    }
+  ],
+  "affected_repos": [
+    "agent-cluster-contracts"
+  ],
+  "ssot_owner": "agent-cluster-contracts",
+  "generated_artifacts": null,
+  "guards": null,
+  "examples": [
+    "A dumb-agent PR also edits contracts/tools/decision/main.go — agentguard fails with forbidden_paths violation",
+    "merge is blocked"
+  ],
+  "counterexamples": null,
+  "created_at": "2026-06-03",
+  "accepted_at": "2026-06-03"
+}

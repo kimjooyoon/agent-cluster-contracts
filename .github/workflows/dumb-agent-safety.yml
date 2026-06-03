@@ -1,0 +1,85 @@
+name: dumb-agent-safety
+
+# Per-PR role enforcement.
+#
+# Determines the PR's role from the first signal that matches:
+#   1. A label named "dumb-agent" or "guard-author".
+#   2. A branch prefix:  dumb-agent/*  or  guard-author/*.
+# Otherwise the role is "designer" and this workflow becomes a no-op.
+#
+# When a non-designer role is detected, agentguard verifies that every changed
+# file matches the role's allowed_paths and matches no forbidden_paths
+# declared in contracts/agent-roles.riido.json. A violation fails the job and
+# blocks the merge.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+jobs:
+  enforce-role:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Detect role from label or branch prefix
+        id: role
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          role=""
+          # Label-based detection
+          if echo "$LABELS" | grep -q '"name": *"dumb-agent"'; then
+            role="dumb-agent"
+          elif echo "$LABELS" | grep -q '"name": *"guard-author"'; then
+            role="guard-author"
+          fi
+          # Branch-prefix detection (only if no label hit)
+          if [ -z "$role" ]; then
+            case "$HEAD_REF" in
+              dumb-agent/*)   role="dumb-agent" ;;
+              guard-author/*) role="guard-author" ;;
+            esac
+          fi
+          if [ -z "$role" ]; then
+            role="designer"
+          fi
+          echo "role=$role" >> "$GITHUB_OUTPUT"
+          echo "Detected role: $role"
+
+      - name: Build agentguard
+        if: steps.role.outputs.role != 'designer'
+        run: go build -o bin/ ./tools/agentguard
+
+      - name: Compute changed files
+        if: steps.role.outputs.role != 'designer'
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/changed.txt
+          echo "Changed files:"
+          cat /tmp/changed.txt
+
+      - name: Verify role boundaries
+        if: steps.role.outputs.role != 'designer'
+        run: ./bin/agentguard verify --role "${{ steps.role.outputs.role }}" --stdin < /tmp/changed.txt
+
+      - name: Designer role — no-op
+        if: steps.role.outputs.role == 'designer'
+        run: echo "Designer role detected; agentguard does not gate this PR (other workflows still run)."
