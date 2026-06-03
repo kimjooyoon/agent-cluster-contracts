@@ -344,12 +344,22 @@ reports/environment-blockers/**
 tools/**
 .github/workflows/**
 decisions/**
-dsl/core/**
+dsl/**
 ir/schema/**
 ssot-dependency-map.riido.json
+ssot-dependency-map.schema.json
 concept-map/concept-map.riido.json
+concept-map/schema.riido.json
 agent-roles.riido.json
+agent-roles.schema.json
+purpose-banlist.riido.json
+purpose-banlist.schema.json
 ```
+
+Every SSOT data file is paired with its schema file in this list (D031,
+C-016). Schemas are more fundamental than data — a weakened schema
+silently relaxes every downstream validation. The pairing convention
+is enforced symmetrically; new SSOT additions must register both.
 
 Anything not in allowed_paths and not in forbidden_paths is also rejected
 (treated as not-allowed). When in doubt, write a `reports/guard-candidates/`

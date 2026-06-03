@@ -35,8 +35,11 @@
         "dsl/**",
         "ir/schema/**",
         "ssot-dependency-map.riido.json",
+        "ssot-dependency-map.schema.json",
         "concept-map/concept-map.riido.json",
+        "concept-map/schema.riido.json",
         "agent-roles.riido.json",
+        "agent-roles.schema.json",
         "purpose-banlist.riido.json",
         "purpose-banlist.schema.json"
       ],
